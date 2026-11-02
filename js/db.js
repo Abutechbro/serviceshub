@@ -236,7 +236,7 @@ const ServeHubDB = {
      ======================================================================== */
   getCloudConfig() {
     try {
-      return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || { binId: '', apiKey: '' };
+      return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || { binId: '6ae8ad79ffd5d160539fd72e', apiKey: '$2a$10$q.tJa2P9V2hnmTwVSwkqiOELFjI1WrwoHuJ23HlJy37q6bDk.HkKm' };
     } catch {
       return { binId: '', apiKey: '' };
     }
