@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServeHub Pro — Find & Book Trusted Professionals</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="min-h-screen flex flex-col selection:bg-blue-600 selection:text-white">
+
+  <!-- ========================================================================
+       0. PUBLIC ANNOUNCEMENT BAR (HIDDEN WHEN PRO IS LOGGED IN)
+       ======================================================================== -->
+  <div id="public-announcement-bar" class="bg-slate-950 text-slate-300 text-[11px] font-semibold border-b border-slate-800/80 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+          <i class="fa-solid fa-shield-check"></i> 100% Vetted & ID-Verified Professionals
+        </span>
+        <span class="hidden md:inline-flex items-center gap-1.5 text-slate-400">
+          <i class="fa-solid fa-bolt text-amber-400"></i> Same-Day Emergency Dispatch Available
+        </span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="#tracker" onclick="App.switchTab('tracker'); return false;" class="hover:text-white transition">
+          <i class="fa-solid fa-location-crosshairs text-blue-400 mr-1"></i>Track Existing Job
+        </a>
+        <span class="text-slate-700">|</span>
+        <a href="#pro-portal" onclick="App.switchTab('pro-portal'); return false;" class="text-amber-400 hover:text-amber-300 font-bold transition">
+          Pro Login / Register &rarr;
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       1. STATE-AWARE TOP NAVIGATION BAR
+       Switches dynamically between Public Guest Mode & Logged-In Pro Mode
+       ======================================================================== -->
+  <header class="sticky top-0 z-40 glass-header border-b border-slate-200/80 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+
+      <!-- Brand Identity -->
+      <div onclick="App.handleLogoClick()" class="flex items-center gap-3 group cursor-pointer">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-blue-600/20 group-hover:scale-105 transition">
+          <i class="fa-solid fa-screwdriver-wrench text-lg"></i>
+        </div>
+        <div>
+          <span class="font-extrabold text-xl tracking-tight text-slate-900">Serve<span class="text-blue-600">Hub</span></span>
+          <span id="brand-subtitle-badge" class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1">Verified Pros</span>
+        </div>
+      </div>
+
+      <!-- 1A. PUBLIC GUEST NAVIGATION (SHOWN ONLY WHEN LOGGED OUT) -->
+      <nav id="public-desktop-nav" class="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+        <button onclick="App.switchTab('marketplace')" id="nav-marketplace" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm">
+          <i class="fa-solid fa-compass mr-1.5"></i>Find a Pro
+        </button>
+        <button onclick="App.switchTab('tracker')" id="nav-tracker" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-radar mr-1.5"></i>Track Booking
+        </button>
+        <button onclick="App.switchTab('pro-portal')" id="nav-pro-portal" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-briefcase mr-1.5"></i>Pro Portal
+        </button>
+      </nav>
+
+      <!-- 1B. PUBLIC GUEST CTA BUTTONS (SHOWN ONLY WHEN LOGGED OUT) -->
+      <div id="public-header-actions" class="flex items-center gap-2.5">
+        <button onclick="App.switchTab('pro-portal')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
+          <i class="fa-solid fa-right-to-bracket"></i> Pro Login / Join
+        </button>
+      </div>
+
+      <!-- 1C. LOGGED-IN PROFESSIONAL WORKSPACE NAV (HIDDEN WHEN LOGGED OUT) -->
+      <nav id="pro-desktop-nav" class="hidden items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+        <button onclick="App.switchProWorkspaceTab('bookings')" id="pnav-bookings" class="px-4 py-2 rounded-lg text-xs font-extrabold transition-all bg-white text-blue-600 shadow-sm">
+          <i class="fa-solid fa-calendar-check mr-1.5"></i>Client Bookings
+        </button>
+        <button onclick="App.switchProWorkspaceTab('services')" id="pnav-services" class="px-4 py-2 rounded-lg text-xs font-extrabold transition-all text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-tags mr-1.5"></i>Service Menu & Rates
+        </button>
+        <button onclick="App.switchProWorkspaceTab('profile')" id="pnav-profile" class="px-4 py-2 rounded-lg text-xs font-extrabold transition-all text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-id-card mr-1.5"></i>Business Settings
+        </button>
+      </nav>
+
+      <!-- 1D. LOGGED-IN PROFESSIONAL ACTIONS (HIDDEN WHEN LOGGED OUT) -->
+      <div id="pro-header-actions" class="hidden items-center gap-2.5">
+        <button onclick="App.previewMyShowroom()" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition">
+          <i class="fa-regular fa-eye text-blue-600"></i> Preview Showroom
+        </button>
+        <button id="header-availability-btn" onclick="App.toggleProAvailability()" class="px-3.5 py-2 rounded-xl text-xs font-extrabold transition"></button>
+        <button onclick="App.handleProLogout()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm">
+          <i class="fa-solid fa-power-off"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Bar: Public Guest Mode -->
+    <div id="public-mobile-nav" class="flex md:hidden border-t border-slate-200/80 bg-white px-2 py-1.5 justify-around">
+      <button onclick="App.switchTab('marketplace')" id="mnav-marketplace" class="flex-1 py-1.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600">
+        <i class="fa-solid fa-compass mr-1"></i>Find Pro
+      </button>
+      <button onclick="App.switchTab('tracker')" id="mnav-tracker" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
+        <i class="fa-solid fa-radar mr-1"></i>Track Job
+      </button>
+      <button onclick="App.switchTab('pro-portal')" id="mnav-pro-portal" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
+        <i class="fa-solid fa-briefcase mr-1"></i>Pro Portal
+      </button>
+    </div>
+
+    <!-- Mobile Navigation Bar: Logged-In Pro Mode -->
+    <div id="pro-mobile-nav" class="hidden border-t border-slate-200/80 bg-white px-2 py-1.5 justify-around">
+      <button onclick="App.switchProWorkspaceTab('bookings')" id="mpnav-bookings" class="flex-1 py-1.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600">
+        <i class="fa-solid fa-calendar-check mr-1"></i>Bookings
+      </button>
+      <button onclick="App.switchProWorkspaceTab('services')" id="mpnav-services" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
+        <i class="fa-solid fa-tags mr-1"></i>Services
+      </button>
+      <button onclick="App.switchProWorkspaceTab('profile')" id="mpnav-profile" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
+        <i class="fa-solid fa-gear mr-1"></i>Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       2. VIEW 1: CUSTOMER MARKETPLACE (HIDDEN WHEN PRO IS LOGGED IN)
+       ======================================================================== -->
+  <main id="view-marketplace" class="flex-1 animate-fade-in">
+    <!-- Hero Search Section -->
+    <section class="relative bg-slate-900 text-white overflow-hidden pt-12 pb-16 lg:pt-16 lg:pb-20">
+      <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute inset-0 opacity-15 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]"></div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="max-w-3xl mx-auto text-center">
+          <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 border border-blue-400/25 mb-5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            On-Demand Professional Services Marketplace
+          </span>
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.12]">
+            Hire Vetted <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300">Professionals</span> For Any Job, Fast.
+          </h1>
+          <p class="mt-4 text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            Connect directly with certified electricians, master plumbers, solar engineers, and HVAC specialists. View upfront service menus, compare ratings, and book in under 60 seconds.
+          </p>
+
+          <!-- Search & Location Filter Bar -->
+          <div class="mt-8 bg-white p-2.5 rounded-2xl shadow-2xl shadow-blue-950/50 max-w-2xl mx-auto flex flex-col sm:flex-row gap-2 border border-white/20">
+            <div class="flex-1 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
+              <i class="fa-solid fa-magnifying-glass text-blue-600 mr-3"></i>
+              <input
+                id="search-keyword"
+                type="text"
+                oninput="App.renderMarketplace()"
+                placeholder="What do you need fixed? (e.g. Electrician, Solar, AC)..."
+                class="w-full bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
+              />
+            </div>
+            <div class="sm:w-48 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
+              <i class="fa-solid fa-location-dot text-rose-500 mr-2.5"></i>
+              <input
+                id="search-location"
+                type="text"
+                oninput="App.renderMarketplace()"
+                placeholder="City or Area..."
+                class="w-full bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
+              />
+            </div>
+            <button onclick="App.resetFilters()" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm transition shrink-0 shadow-md shadow-blue-600/25">
+              Reset
+            </button>
+          </div>
+
+          <!-- Popular Quick Tags -->
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
+            <span class="font-bold text-slate-300">Popular:</span>
+            <button onclick="App.selectCategory('Electrician')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-200 border border-white/10 transition">⚡ Electrician</button>
+            <button onclick="App.selectCategory('Solar & Inverter')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-200 border border-white/10 transition">☀️ Solar & Inverter</button>
+            <button onclick="App.selectCategory('Plumber')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-200 border border-white/10 transition">🚰 Master Plumber</button>
+            <button onclick="App.selectCategory('AC & Cooling')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-200 border border-white/10 transition">❄️ AC Servicing</button>
+          </div>
+
+          <!-- Hero Trust Metrics Strip -->
+          <div class="mt-10 pt-8 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left max-w-2xl mx-auto">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                <i class="fa-solid fa-user-check"></i>
+              </div>
+              <div>
+                <p class="text-sm font-extrabold text-white">Verified Pros</p>
+                <p class="text-[11px] text-slate-400">ID & Skill Checked</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                <i class="fa-solid fa-tags"></i>
+              </div>
+              <div>
+                <p class="text-sm font-extrabold text-white">Upfront Rates</p>
+                <p class="text-[11px] text-slate-400">No Hidden Charges</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <i class="fa-brands fa-whatsapp text-lg"></i>
+              </div>
+              <div>
+                <p class="text-sm font-extrabold text-white">Instant Alert</p>
+                <p class="text-[11px] text-slate-400">Direct WhatsApp Sync</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+                <i class="fa-solid fa-star"></i>
+              </div>
+              <div>
+                <p class="text-sm font-extrabold text-white">4.9/5 Rating</p>
+                <p class="text-[11px] text-slate-400">Client Reviewed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category Pills & Filter Controls -->
+    <section id="directory-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14">
+      <div id="category-pills-container" class="flex items-center gap-2.5 overflow-x-auto pb-3 no-scrollbar"></div>
+
+      <div class="mt-5 flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm">
+        <div class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+          Showing <span id="pro-results-count" class="font-extrabold text-blue-600">0</span> available professionals
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" id="filter-verified" onchange="App.renderMarketplace()" class="rounded text-blue-600 focus:ring-0 w-4 h-4" />
+            <span><i class="fa-solid fa-circle-check text-blue-600 mr-1"></i>Verified Only</span>
+          </label>
+
+          <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" id="filter-available" onchange="App.renderMarketplace()" class="rounded text-emerald-600 focus:ring-0 w-4 h-4" />
+            <span><span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>Available Now</span>
+          </label>
+
+          <select id="sort-pros" onchange="App.renderMarketplace()" class="bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3.5 py-2 focus:outline-none focus:border-blue-600">
+            <option value="featured">Sort: Top Recommended</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="jobs-desc">Most Jobs Completed</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="professionals-grid" class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </section>
+
+    <!-- How ServeHub Works -->
+    <section class="bg-white border-y border-slate-200/80 py-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-extrabold uppercase tracking-wider">Simple & Transparent</span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">How ServeHub Pro Works</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-2">Book a reliable technical specialist in three straightforward steps without middleman delays.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="relative p-6 rounded-3xl bg-slate-50 border border-slate-200/80">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white font-extrabold flex items-center justify-center text-lg shadow-lg shadow-blue-600/25 mb-4">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <span class="absolute top-6 right-6 text-3xl font-black text-slate-200">01</span>
+            <h3 class="text-base font-extrabold text-slate-900">Compare Digital Showrooms</h3>
+            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Browse verified professionals by category or city. Inspect their itemized price menu, past project portfolio, and real client reviews.</p>
+          </div>
+
+          <div class="relative p-6 rounded-3xl bg-slate-50 border border-slate-200/80">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-lg shadow-lg shadow-indigo-600/25 mb-4">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <span class="absolute top-6 right-6 text-3xl font-black text-slate-200">02</span>
+            <h3 class="text-base font-extrabold text-slate-900">Book & Get Instant Estimate</h3>
+            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Select the exact service you need, pick your preferred date and time, and receive an instant Booking Reference ID with zero hidden fees.</p>
+          </div>
+
+          <div class="relative p-6 rounded-3xl bg-slate-50 border border-slate-200/80">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-lg shadow-lg shadow-emerald-600/25 mb-4">
+              <i class="fa-brands fa-whatsapp text-xl"></i>
+            </div>
+            <span class="absolute top-6 right-6 text-3xl font-black text-slate-200">03</span>
+            <h3 class="text-base font-extrabold text-slate-900">Track Live & Chat Directly</h3>
+            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Send your booking ticket directly to the pro's WhatsApp in one click and track job progress from Pending to Completed.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================================================
+       3. VIEW 2: LIVE CUSTOMER BOOKING TRACKER (HIDDEN WHEN PRO IS LOGGED IN)
+       ======================================================================== -->
+  <section id="view-tracker" class="hidden flex-1 max-w-3xl w-full mx-auto px-4 py-12 animate-fade-in">
+    <div class="bg-white rounded-3xl border border-slate-200/90 shadow-lg p-6 sm:p-8">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-magnifying-glass-location"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-900">Track Your Service Booking</h2>
+          <p class="text-xs text-slate-500">Enter your Booking Reference ID (e.g., <code class="font-bold text-blue-600">SHB-8492</code>) or Phone Number</p>
+        </div>
+      </div>
+
+      <div class="mt-5 flex flex-col sm:flex-row gap-2.5">
+        <input
+          id="tracker-query"
+          type="text"
+          placeholder="Enter Reference ID (e.g. SHB-8492) or Phone Number..."
+          class="flex-1 px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+        />
+        <button onclick="App.trackBooking()" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition">
+          Track Status
+        </button>
+      </div>
+
+      <div id="tracker-result-box" class="mt-6"></div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       4. VIEW 3: PROFESSIONAL PORTAL & ISOLATED PRO WORKSPACE
+       ======================================================================== -->
+  <section id="view-pro-portal" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-fade-in">
+
+    <!-- SUB-VIEW 4A: AUTHENTICATION GATEWAY (SHOWN ONLY WHEN LOGGED OUT) -->
+    <div id="pro-auth-gateway" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+      <!-- Left Column: Professional Login Card -->
+      <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200 shadow-lg p-6 sm:p-8 lg:sticky lg:top-24">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-3">
+          <i class="fa-solid fa-lock"></i> Pro Member Access
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Professional Login</h2>
+        <p class="text-xs text-slate-500 mt-1">Sign in with your username and password to enter your dedicated business workspace.</p>
+
+        <form id="pro-login-form" onsubmit="App.handleProLogin(event)" class="mt-6 space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Username</label>
+            <div class="relative">
+              <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+              <input
+                id="pro-login-username"
+                type="text"
+                required
+                placeholder="e.g. apex_electric"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Password</label>
+            <div class="relative">
+              <i class="fa-solid fa-key absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+              <input
+                id="pro-login-password"
+                type="password"
+                required
+                placeholder="Enter your password"
+                class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+              />
+              <button type="button" onclick="App.togglePasswordVisibility('pro-login-password')" class="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm transition shadow-md">
+            Login to Pro Workspace <i class="fa-solid fa-arrow-right ml-1.5"></i>
+          </button>
+        </form>
+
+        <!-- Quick Demo Login Helper -->
+        <div class="mt-6 pt-5 border-t border-slate-100">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Instant Demo Accounts (Click to Autofill)</p>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="App.fillDemoPro('apex_electric', 'password123')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 font-semibold transition">
+              ⚡ apex_electric
+            </button>
+            <button onclick="App.fillDemoPro('helios_solar', 'password123')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 font-semibold transition">
+              ☀️ helios_solar
+            </button>
+            <button onclick="App.fillDemoPro('aqua_plumb', 'password123')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 font-semibold transition">
+              🚰 aqua_plumb
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: New Professional Registration Form -->
+      <div class="lg:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-lg p-6 sm:p-8">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-3">
+          <i class="fa-solid fa-rocket"></i> Grow Your Business
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Register as a Service Professional</h2>
+        <p class="text-xs text-slate-500 mt-1">Create your digital showroom, list your service prices, and receive direct customer bookings.</p>
+
+        <form id="pro-register-form" onsubmit="App.handleProRegistration(event)" class="mt-6 space-y-5">
+          <!-- Step 1: Login Credentials -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600 mb-3">
+              <i class="fa-solid fa-user-shield mr-1"></i> Step 1: Login Credentials
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Choose Username *</label>
+                <input id="reg-username" type="text" required placeholder="e.g. spark_king" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600 bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Create Password *</label>
+                <div class="relative">
+                  <input id="reg-password" type="password" required minlength="6" placeholder="Min. 6 characters" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600 bg-white" />
+                  <button type="button" onclick="App.togglePasswordVisibility('reg-password')" class="absolute right-3 top-2.5 text-slate-400">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Business Profile Details -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600">
+              <i class="fa-solid fa-id-card mr-1"></i> Step 2: Business & Contact Details
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Your Full Name *</label>
+                <input id="reg-name" type="text" required placeholder="e.g. Engr. Musa Danjuma" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Business / Brand Name *</label>
+                <input id="reg-business" type="text" required placeholder="e.g. PrimeVolt Electricals" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Service Category *</label>
+                <select id="reg-category" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">City / Service Area *</label>
+                <input id="reg-location" type="text" required placeholder="e.g. Ikeja, Lagos" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">WhatsApp Phone (with country code) *</label>
+                <input id="reg-phone" type="tel" required placeholder="e.g. 2348031234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Starting Call-Out Rate (₦) *</label>
+                <input id="reg-rate" type="number" required min="1000" step="500" placeholder="e.g. 10000" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Years of Experience *</label>
+                <input id="reg-exp" type="number" required min="1" max="50" value="5" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Profile Photo (Auto-Compressed)</label>
+                <input id="reg-avatar" type="file" accept="image/*" class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Professional Bio & Specialties *</label>
+              <textarea id="reg-bio" rows="2" required placeholder="Describe what you do, certifications, and why clients should book you..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white"></textarea>
+            </div>
+          </div>
+
+          <!-- Step 3: Dynamic Service Rate Menu Builder -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600">
+                <i class="fa-solid fa-list-check mr-1"></i> Step 3: Your Service Menu & Prices
+              </h3>
+              <button type="button" onclick="App.addRegServiceRow()" class="text-xs font-bold text-blue-600 hover:underline">
+                + Add Another Service
+              </button>
+            </div>
+            <div id="reg-services-list" class="space-y-2.5">
+              <div class="grid grid-cols-12 gap-2 reg-service-item">
+                <input type="text" required placeholder="Service title (e.g. Full Diagnostic & Inspection)" class="col-span-8 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-title" />
+                <input type="number" required placeholder="Price (₦)" class="col-span-4 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-price" />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm transition shadow-lg shadow-blue-600/20">
+            <i class="fa-solid fa-check-double mr-1.5"></i> Launch My Professional Profile
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         SUB-VIEW 4B: DEDICATED PROFESSIONAL WORKSPACE (SHOWN WHEN LOGGED IN)
+         ====================================================================== -->
+    <div id="pro-dashboard-view" class="hidden space-y-6">
+
+      <!-- Pro Workspace Identity Banner -->
+      <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div class="flex items-center gap-4">
+          <img id="dash-pro-avatar" src="" alt="Pro Avatar" class="w-16 h-16 rounded-2xl object-cover border-2 border-blue-400" />
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 id="dash-pro-business" class="text-xl sm:text-2xl font-extrabold"></h2>
+              <span id="dash-pro-verified-badge"></span>
+            </div>
+            <p id="dash-pro-meta" class="text-xs text-slate-300 mt-1"></p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button onclick="App.previewMyShowroom()" class="sm:hidden px-3.5 py-2 rounded-xl bg-white/10 text-white text-xs font-bold">
+            <i class="fa-regular fa-eye mr-1"></i> Preview Showroom
+          </button>
+        </div>
+      </div>
+
+      <!-- Pro KPI Metrics Strip -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-400 uppercase">Total Job Requests</span>
+          <p id="dash-kpi-total" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-400 uppercase">Active / Pending</span>
+          <p id="dash-kpi-pending" class="text-2xl font-extrabold text-amber-600 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-400 uppercase">Completed Jobs</span>
+          <p id="dash-kpi-completed" class="text-2xl font-extrabold text-emerald-600 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-400 uppercase">Completed Revenue</span>
+          <p id="dash-kpi-revenue" class="text-2xl font-extrabold text-blue-600 mt-1">₦0</p>
+        </div>
+      </div>
+
+      <!-- WORKSPACE TAB 1: CLIENT BOOKINGS PIPELINE -->
+      <div id="pro-tab-bookings" class="bg-white rounded-3xl border border-slate-200 p-6 animate-fade-in">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-lg font-extrabold text-slate-900">
+              <i class="fa-solid fa-calendar-check text-blue-600 mr-2"></i>Client Bookings & Job Pipeline
+            </h3>
+            <p class="text-xs text-slate-500">Accept new bookings, update live job stages, or chat directly with your clients on WhatsApp.</p>
+          </div>
+        </div>
+        <div id="dash-pro-bookings-list" class="space-y-4"></div>
+      </div>
+
+      <!-- WORKSPACE TAB 2: SERVICE MENU & PRICING MANAGER -->
+      <div id="pro-tab-services" class="hidden bg-white rounded-3xl border border-slate-200 p-6 animate-fade-in">
+        <div class="max-w-2xl">
+          <h3 class="text-lg font-extrabold text-slate-900 mb-1">
+            <i class="fa-solid fa-tags text-blue-600 mr-2"></i>Your Service Menu & Upfront Rates
+          </h3>
+          <p class="text-xs text-slate-500 mb-5">Manage the itemized services and prices customers can select when booking your business.</p>
+
+          <div id="dash-pro-services-list" class="space-y-2.5 mb-6"></div>
+
+          <form onsubmit="App.addServiceFromDashboard(event)" class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-600">Add a New Service Rate</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <input id="dash-new-srv-title" type="text" required placeholder="Service title (e.g. 5kVA Inverter Servicing)" class="sm:col-span-8 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white" />
+              <input id="dash-new-srv-price" type="number" required min="500" placeholder="Price (₦)" class="sm:col-span-4 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white" />
+            </div>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition">
+              + Add Service to Showroom
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- WORKSPACE TAB 3: BUSINESS SETTINGS & PROFILE EDITOR -->
+      <div id="pro-tab-profile" class="hidden bg-white rounded-3xl border border-slate-200 p-6 animate-fade-in">
+        <div class="max-w-2xl">
+          <h3 class="text-lg font-extrabold text-slate-900 mb-1">
+            <i class="fa-solid fa-id-card text-blue-600 mr-2"></i>Business Settings & Showroom Bio
+          </h3>
+          <p class="text-xs text-slate-500 mb-5">Update your business name, location, call-out rate, WhatsApp contact, or account password.</p>
+
+          <form onsubmit="App.saveProProfileSettings(event)" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Business Name</label>
+                <input id="edit-pro-business" type="text" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                <input id="edit-pro-name" type="text" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">City / Service Area</label>
+                <input id="edit-pro-location" type="text" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">WhatsApp Phone</label>
+                <input id="edit-pro-phone" type="tel" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Starting Call-Out Rate (₦)</label>
+                <input id="edit-pro-rate" type="number" required min="500" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">New Password (leave blank to keep current)</label>
+                <input id="edit-pro-password" type="password" placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Professional Bio</label>
+              <textarea id="edit-pro-bio" rows="3" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold"></textarea>
+            </div>
+            <button type="submit" class="px-6 py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
+              Save Business Settings
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       5. MODAL: PROFESSIONAL DIGITAL SHOWROOM & INSTANT BOOKING DRAWER
+       ======================================================================== -->
+  <div id="showroom-modal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto no-print">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 animate-fade-in">
+      <div id="showroom-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       6. MODAL: BOOKING RECEIPT & WHATSAPP DISPATCH
+       ======================================================================== -->
+  <div id="receipt-modal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div id="receipt-modal-body" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-fade-in"></div>
+  </div>
+
+  <!-- ========================================================================
+       7. TOAST NOTIFICATION CONTAINER
+       ======================================================================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 no-print"></div>
+
+  <!-- ========================================================================
+       8. STATE-AWARE FOOTER (FULL PUBLIC FOOTER vs MINIMAL PRO WORKSPACE FOOTER)
+       ======================================================================== -->
+  <!-- 8A. PUBLIC MARKETING FOOTER (SHOWN ONLY WHEN LOGGED OUT) -->
+  <footer id="public-footer" class="bg-slate-950 text-slate-400 border-t border-slate-800/80 mt-auto no-print">
+    <!-- Pre-Footer CTA Card -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+      <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 sm:p-10 shadow-2xl shadow-blue-950/60 border border-blue-400/20 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        <div class="max-w-xl">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-white/15 text-white mb-3">
+            <i class="fa-solid fa-bolt text-amber-300"></i> For Skilled Tradespeople & Engineers
+          </span>
+          <h3 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Are You a Certified Service Professional?
+          </h3>
+          <p class="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
+            Launch your digital showroom on ServeHub Pro in 2 minutes. Showcase your rates, receive instant WhatsApp booking tickets, and build verified client trust.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 shrink-0">
+          <button onclick="App.switchTab('pro-portal')" class="px-6 py-3.5 rounded-2xl bg-white text-slate-950 hover:bg-blue-50 font-extrabold text-xs sm:text-sm transition shadow-lg">
+            Create Free Pro Account <i class="fa-solid fa-arrow-right ml-1.5 text-blue-600"></i>
+          </button>
+          <button onclick="App.switchTab('pro-portal')" class="px-5 py-3.5 rounded-2xl bg-blue-900/50 hover:bg-blue-900/80 text-white font-bold text-xs sm:text-sm border border-blue-400/30 transition">
+            Pro Login
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Footer Columns -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-slate-800/80">
+
+        <!-- Column 1: Brand Identity -->
+        <div class="lg:col-span-4 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+              <i class="fa-solid fa-screwdriver-wrench text-lg"></i>
+            </div>
+            <div>
+              <span class="font-extrabold text-xl tracking-tight text-white">Serve<span class="text-blue-400">Hub</span></span>
+              <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1">Verified Marketplace</span>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-400 leading-relaxed pr-4">
+            ServeHub Pro connects homeowners and businesses with vetted, background-checked electricians, plumbers, solar engineers, and technical artisans with transparent upfront pricing.
+          </p>
+
+          <div class="flex flex-wrap gap-2 pt-1">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300">
+              <i class="fa-solid fa-circle-check text-emerald-400"></i> ID-Verified Pros
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300">
+              <i class="fa-solid fa-lock text-blue-400"></i> Direct Booking Sync
+            </span>
+          </div>
+        </div>
+
+        <!-- Column 2: Popular Service Categories -->
+        <div class="lg:col-span-3 space-y-3">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-white">Popular Categories</h4>
+          <ul class="space-y-2.5 text-xs font-semibold">
+            <li>
+              <a href="#directory-section" onclick="App.switchTab('marketplace'); App.selectCategory('Electrician');" class="hover:text-blue-400 transition flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-blue-500 w-4"></i> Certified Electricians
+              </a>
+            </li>
+            <li>
+              <a href="#directory-section" onclick="App.switchTab('marketplace'); App.selectCategory('Solar & Inverter');" class="hover:text-blue-400 transition flex items-center gap-2">
+                <i class="fa-solid fa-solar-panel text-amber-400 w-4"></i> Solar & Inverter Engineers
+              </a>
+            </li>
+            <li>
+              <a href="#directory-section" onclick="App.switchTab('marketplace'); App.selectCategory('Plumber');" class="hover:text-blue-400 transition flex items-center gap-2">
+                <i class="fa-solid fa-faucet-drip text-cyan-400 w-4"></i> Master Plumbing & Piping
+              </a>
+            </li>
+            <li>
+              <a href="#directory-section" onclick="App.switchTab('marketplace'); App.selectCategory('AC & Cooling');" class="hover:text-blue-400 transition flex items-center gap-2">
+                <i class="fa-solid fa-snowflake text-sky-400 w-4"></i> HVAC & AC Servicing
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Customer Actions -->
+        <div class="lg:col-span-2 space-y-3">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-white">Quick Access</h4>
+          <ul class="space-y-2.5 text-xs font-semibold">
+            <li>
+              <a href="#marketplace" onclick="App.switchTab('marketplace'); return false;" class="hover:text-white transition">Find a Professional</a>
+            </li>
+            <li>
+              <a href="#tracker" onclick="App.switchTab('tracker'); return false;" class="hover:text-white transition">Track Existing Job</a>
+            </li>
+            <li>
+              <a href="#pro-portal" onclick="App.switchTab('pro-portal'); return false;" class="hover:text-white transition">Professional Portal</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 4: Customer Support -->
+        <div class="lg:col-span-3 space-y-4">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-white">Customer Dispatch Desk</h4>
+          <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/90 space-y-1.5 text-xs">
+            <div class="flex items-center gap-2 text-slate-200 font-bold">
+              <i class="fa-solid fa-headset text-blue-400"></i> 24/7 Verified Support
+            </div>
+            <p class="text-[11px] text-slate-400">Lagos &bull; Abuja &bull; Port Harcourt &bull; Ibadan</p>
+            <p class="text-[11px] text-emerald-400 font-semibold">
+              <i class="fa-solid fa-circle text-[7px] mr-1 align-middle"></i> All Systems Operational
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Copyright -->
+      <div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <p class="font-semibold">&copy; 2026 <span class="text-slate-300 font-bold">ServeHub Pro</span>. All rights reserved.</p>
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
+          Back to Top <i class="fa-solid fa-arrow-up ml-1"></i>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 8B. MINIMAL PRO WORKSPACE FOOTER (SHOWN ONLY WHEN PRO IS LOGGED IN) -->
+  <footer id="pro-workspace-footer" class="hidden bg-white border-t border-slate-200 py-5 mt-auto no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-semibold">
+      <div>
+        <span class="text-slate-900 font-extrabold">ServeHub Pro Workspace</span> &bull; Logged in as <span id="footer-pro-username" class="text-blue-600 font-bold"></span>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="App.previewMyShowroom()" class="hover:text-blue-600">Preview My Public Showroom</button>
+        <span>&bull;</span>
+        <button onclick="App.handleProLogout()" class="text-rose-600 font-bold hover:underline">Logout</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
