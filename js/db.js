@@ -12,7 +12,7 @@
    1. PASTE YOUR FIREBASE CONFIGURATION HERE BEFORE PUSHING TO GITHUB
    ========================================================================== */
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyD6tIyylJqIZ5_SPkBojelARLqRL-q6tyQ",
   authDomain: "servehub-d8739.firebaseapp.com",
   databaseURL: "https://servehub-d8739-default-rtdb.firebaseio.com",
