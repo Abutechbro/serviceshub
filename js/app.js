@@ -1,10 +1,9 @@
 /**
  * ============================================================================
- * SERVEHUB PRO - FRONTEND & PRO WORKSPACE CONTROLLER (js/app.js)
- * Enforces strict role-based UI isolation:
- * - Guest Mode: Shows Find a Pro, Track Booking, Pro Login/Register & Public Footer
- * - Logged-In Pro Mode: Hides all customer/guest navigation & locks UI into
- *   the dedicated Professional Workspace (Bookings, Services, Business Settings)
+ * SERVEHUB PRO - FRONTEND & POPUP AUTH CONTROLLER (js/app.js)
+ * Features:
+ * - Popup Modal for Pro Login & Registration (with toggle link "Don't have an account? Register here")
+ * - Strict role-based navigation isolation when logged in as a Professional
  * ============================================================================
  */
 
@@ -13,9 +12,6 @@ const App = {
   activeTab: 'marketplace',
   activeProWorkspaceTab: 'bookings',
 
-  /* ========================================================================
-     SECTION 1: INITIALIZATION & REAL-TIME SYNC
-     ======================================================================== */
   async init() {
     const cloud = ServeHubDB.getCloudConfig();
     if (cloud.binId && cloud.apiKey) {
@@ -38,20 +34,46 @@ const App = {
   },
 
   /* ========================================================================
-     SECTION 2: ROLE-BASED NAVIGATION ISOLATION (GUEST vs LOGGED-IN PRO)
+     POPUP AUTH MODAL CONTROLS
+     ======================================================================== */
+  openAuthModal(mode = 'login') {
+    const modal = document.getElementById('auth-modal');
+    const loginDiv = document.getElementById('auth-modal-login');
+    const registerDiv = document.getElementById('auth-modal-register');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    loginDiv.classList.toggle('hidden', mode !== 'login');
+    registerDiv.classList.toggle('hidden', mode !== 'register');
+  },
+
+  closeAuthModal() {
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  switchAuthModal(mode) {
+    const loginDiv = document.getElementById('auth-modal-login');
+    const registerDiv = document.getElementById('auth-modal-register');
+    if (!loginDiv || !registerDiv) return;
+
+    loginDiv.classList.toggle('hidden', mode !== 'login');
+    registerDiv.classList.toggle('hidden', mode !== 'register');
+  },
+
+  /* ========================================================================
+     ROLE-BASED NAVIGATION ISOLATION
      ======================================================================== */
   syncRoleNavigationUI() {
     const activePro = ServeHubDB.getActivePro();
     const isProLoggedIn = Boolean(activePro);
 
-    // Public-only elements to hide when a Professional is logged in
     const publicAnnouncement = document.getElementById('public-announcement-bar');
     const publicDesktopNav = document.getElementById('public-desktop-nav');
     const publicHeaderActions = document.getElementById('public-header-actions');
     const publicMobileNav = document.getElementById('public-mobile-nav');
     const publicFooter = document.getElementById('public-footer');
 
-    // Pro-only workspace elements to show when a Professional is logged in
     const proDesktopNav = document.getElementById('pro-desktop-nav');
     const proHeaderActions = document.getElementById('pro-header-actions');
     const proMobileNav = document.getElementById('pro-mobile-nav');
@@ -59,7 +81,6 @@ const App = {
     const brandSubtitle = document.getElementById('brand-subtitle-badge');
 
     if (isProLoggedIn) {
-      // Hide all Public / Customer navigation & marketing sections
       publicAnnouncement?.classList.add('hidden');
       publicDesktopNav?.classList.add('hidden');
       publicDesktopNav?.classList.remove('md:flex');
@@ -68,7 +89,6 @@ const App = {
       publicMobileNav?.classList.remove('flex');
       publicFooter?.classList.add('hidden');
 
-      // Show Dedicated Pro Workspace navigation & actions
       proDesktopNav?.classList.remove('hidden');
       proDesktopNav?.classList.add('md:flex');
       proHeaderActions?.classList.remove('hidden');
@@ -85,12 +105,10 @@ const App = {
       const footerUser = document.getElementById('footer-pro-username');
       if (footerUser) footerUser.textContent = `@${activePro.username}`;
 
-      // Force view to the Pro Portal Workspace & hide customer views
       document.getElementById('view-marketplace')?.classList.add('hidden');
       document.getElementById('view-tracker')?.classList.add('hidden');
       document.getElementById('view-pro-portal')?.classList.remove('hidden');
     } else {
-      // Restore Public Guest Navigation
       publicAnnouncement?.classList.remove('hidden');
       publicDesktopNav?.classList.remove('hidden');
       publicDesktopNav?.classList.add('md:flex');
@@ -99,7 +117,6 @@ const App = {
       publicMobileNav?.classList.add('flex');
       publicFooter?.classList.remove('hidden');
 
-      // Hide Pro Workspace Navigation
       proDesktopNav?.classList.add('hidden');
       proDesktopNav?.classList.remove('md:flex');
       proHeaderActions?.classList.add('hidden');
@@ -123,18 +140,14 @@ const App = {
     }
   },
 
-  /* ========================================================================
-     SECTION 3: PUBLIC VIEW / TAB NAVIGATION (GUEST MODE ONLY)
-     ======================================================================== */
   switchTab(tabId) {
-    // Prevent switching to public tabs while logged into Pro Workspace
     if (ServeHubDB.getActivePro()) {
       this.syncRoleNavigationUI();
       return;
     }
 
     this.activeTab = tabId;
-    const views = ['marketplace', 'tracker', 'pro-portal'];
+    const views = ['marketplace', 'tracker'];
 
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
@@ -146,24 +159,11 @@ const App = {
           ? 'nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm'
           : 'nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
       }
-
-      const mnavBtn = document.getElementById(`mnav-${v}`);
-      if (mnavBtn) {
-        mnavBtn.className = v === tabId
-          ? 'flex-1 py-1.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600'
-          : 'flex-1 py-1.5 text-xs font-bold text-slate-500';
-      }
     });
 
-    if (tabId === 'pro-portal') {
-      this.renderProPortalState();
-    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
-  /* ========================================================================
-     SECTION 4: PRO WORKSPACE INTERNAL TAB NAVIGATION (LOGGED-IN PRO MODE)
-     ======================================================================== */
   switchProWorkspaceTab(subTab) {
     this.activeProWorkspaceTab = subTab;
     const tabs = ['bookings', 'services', 'profile'];
@@ -190,13 +190,11 @@ const App = {
 
   previewMyShowroom() {
     const activePro = ServeHubDB.getActivePro();
-    if (activePro) {
-      this.openShowroom(activePro.id);
-    }
+    if (activePro) this.openShowroom(activePro.id);
   },
 
   /* ========================================================================
-     SECTION 5: CUSTOMER MARKETPLACE & FILTERING
+     MARKETPLACE & DIRECTORY
      ======================================================================== */
   renderCategories() {
     const state = ServeHubDB.getState();
@@ -372,7 +370,7 @@ const App = {
   },
 
   /* ========================================================================
-     SECTION 6: PROFESSIONAL SHOWROOM MODAL & COST ESTIMATOR
+     SHOWROOM MODAL & BOOKING
      ======================================================================== */
   openShowroom(proId) {
     const state = ServeHubDB.getState();
@@ -578,7 +576,7 @@ const App = {
   },
 
   /* ========================================================================
-     SECTION 7: BOOKING CREATION, RECEIPT & LIVE TRACKER
+     BOOKINGS & TRACKER
      ======================================================================== */
   submitBooking(e, proId) {
     e.preventDefault();
@@ -736,7 +734,7 @@ const App = {
   },
 
   /* ========================================================================
-     SECTION 8: PRO AUTHENTICATION & ISOLATED PRO WORKSPACE RENDERING
+     PRO AUTHENTICATION & WORKSPACE
      ======================================================================== */
   populateCategorySelect() {
     const select = document.getElementById('reg-category');
@@ -767,6 +765,7 @@ const App = {
       return;
     }
 
+    this.closeAuthModal();
     this.activeProWorkspaceTab = 'bookings';
     this.syncRoleNavigationUI();
     this.renderProPortalState();
@@ -852,6 +851,7 @@ const App = {
     ServeHubDB.authenticatePro(username, password);
 
     e.target.reset();
+    this.closeAuthModal();
     this.renderAll();
     this.switchProWorkspaceTab('bookings');
     this.notify('Account created! Welcome to your Pro Workspace.');
@@ -859,19 +859,15 @@ const App = {
 
   renderProPortalState() {
     const activePro = ServeHubDB.getActivePro();
-    const authGateway = document.getElementById('pro-auth-gateway');
-    const dashView = document.getElementById('pro-dashboard-view');
+    const dashView = document.getElementById('view-pro-portal');
 
     if (!activePro) {
-      authGateway?.classList.remove('hidden');
       dashView?.classList.add('hidden');
       return;
     }
 
-    authGateway?.classList.add('hidden');
     dashView?.classList.remove('hidden');
 
-    // Populate Pro Workspace Identity
     document.getElementById('dash-pro-avatar').src = activePro.avatar;
     document.getElementById('dash-pro-business').textContent = activePro.businessName;
     document.getElementById('dash-pro-meta').textContent = `@${activePro.username} • ${activePro.name} • ${activePro.category} (${activePro.location})`;
@@ -879,7 +875,6 @@ const App = {
       ? '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Verified Pro</span>'
       : '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300">Pending Verification</span>';
 
-    // Top Header Availability Toggle Button
     const headerAvailBtn = document.getElementById('header-availability-btn');
     if (headerAvailBtn) {
       headerAvailBtn.className = activePro.available
@@ -890,7 +885,6 @@ const App = {
         : '<span class="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>Busy';
     }
 
-    // Populate KPIs & Bookings
     const state = ServeHubDB.getState();
     const myBookings = state.bookings.filter(b => b.proId === activePro.id);
     const pendingCount = myBookings.filter(b => b.status !== 'Completed' && b.status !== 'Cancelled').length;
@@ -931,7 +925,6 @@ const App = {
       `).join('');
     }
 
-    // Populate Pro Services List
     const srvList = document.getElementById('dash-pro-services-list');
     srvList.innerHTML = (activePro.services || []).map(s => `
       <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
@@ -943,7 +936,6 @@ const App = {
       </div>
     `).join('');
 
-    // Populate Business Settings Form
     document.getElementById('edit-pro-business').value = activePro.businessName || '';
     document.getElementById('edit-pro-name').value = activePro.name || '';
     document.getElementById('edit-pro-location').value = activePro.location || '';
@@ -1035,9 +1027,6 @@ const App = {
     }
   },
 
-  /* ========================================================================
-     SECTION 9: TOAST NOTIFICATIONS
-     ======================================================================== */
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
