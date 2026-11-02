@@ -71,7 +71,108 @@ body {
 }
 
 /* ==========================================================================
-   4. PRINT RECEIPT RULES
+   4. MINIMAL MOBILE RESPONSIVENESS ADJUSTMENTS
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+img, video, svg {
+  max-width: 100%;
+}
+
+/* Let inputs shrink inside flex and grid containers instead of overflowing. */
+input, select, textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Allow long content in marketplace and dashboard grids to wrap. */
+#professionals-grid > *,
+#view-pro-portal .grid > *,
+#view-marketplace .grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  /* iOS Safari: avoid automatic zoom on focused form fields. */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Keep the announcement readable instead of forcing horizontal overflow. */
+  #public-announcement-bar > div {
+    height: auto;
+    min-height: 2.25rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  #public-announcement-bar > div > div {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Header controls may wrap on very narrow phones. */
+  .glass-header > div:first-child {
+    height: auto;
+    min-height: 4rem;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  #public-header-actions,
+  #pro-header-actions {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  #public-mobile-nav button,
+  #pro-mobile-nav button {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep modal contents within the viewport. */
+  #auth-modal > div,
+  #showroom-modal > div,
+  #receipt-modal > div {
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  #auth-modal-login,
+  #auth-modal-register {
+    padding: 1.25rem;
+  }
+
+  /* Prevent long headings or booking identifiers from widening the page. */
+  #view-marketplace h1,
+  #view-pro-portal h2,
+  #view-tracker h2,
+  #showroom-modal-body,
+  #receipt-modal-body {
+    overflow-wrap: break-word;
+  }
+
+  /* Booking tables remain usable through horizontal scrolling. */
+  #adm-tab-bookings .overflow-x-auto,
+  #adm-tab-pros .overflow-x-auto {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ==========================================================================
+   5. PRINT RECEIPT RULES
    ========================================================================== */
 @media print {
   .no-print {
