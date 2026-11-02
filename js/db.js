@@ -1,21 +1,34 @@
 /**
  * ============================================================================
- * SERVEHUB PRO - SHARED DATABASE & CLOUD ENGINE (js/db.js)
- * Handles:
- * 1. State Persistence (LocalStorage + Cross-Tab Sync)
- * 2. Cloud Synchronization (JSONBin.io REST API for Netlify/Vercel/cPanel)
- * 3. Security Sanitization (XSS Protection) & Password Hashing
- * 4. Client-Side Image Compression (HTML5 Canvas)
+ * SERVEHUB PRO - SCALABLE FIREBASE FIRESTORE ENGINE (js/db.js)
+ * Architecture:
+ * - Multi-Collection Firestore Storage ('professionals', 'bookings', 'platform/meta')
+ * - Bypasses 1MB single-file limits so thousands of pros & bookings can scale
+ * - Real-time WebSockets (onSnapshot) sync Phone A, Phone B & Admin instantly
  * ============================================================================
  */
 
-const DB_STORAGE_KEY = 'SERVEHUB_PRO_PRODUCTION_V2';
-const CLOUD_CONFIG_KEY = 'SERVEHUB_PRO_CLOUD_CONFIG_V2';
+/* ==========================================================================
+   1. PASTE YOUR FIREBASE CONFIGURATION HERE BEFORE PUSHING TO GITHUB
+   ========================================================================== */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD6tIyylJqIZ5_SPkBojelARLqRL-q6tyQ",
+  authDomain: "servehub-d8739.firebaseapp.com",
+  databaseURL: "https://servehub-d8739-default-rtdb.firebaseio.com",
+  projectId: "servehub-d8739",
+  storageBucket: "servehub-d8739.firebasestorage.app",
+  messagingSenderId: "282027174664",
+  appId: "1:282027174664:web:66459fa33d995348151abd",
+  measurementId: "G-JSC2Z393D1"
+};
+
+const DB_STORAGE_KEY = 'SERVEHUB_PRO_PRODUCTION_V3';
 const PRO_SESSION_KEY = 'SERVEHUB_PRO_ACTIVE_SESSION';
 const ADMIN_SESSION_KEY = 'SERVEHUB_ADMIN_ACTIVE_SESSION';
 
 /* ==========================================================================
-   SECTION 1: INITIAL SEED DATA (First-Run Fallback)
+   2. INITIAL SEED DATA (Auto-uploads to Firestore on very first run)
    ========================================================================== */
 const INITIAL_SEED_STATE = {
   settings: {
@@ -26,11 +39,11 @@ const INITIAL_SEED_STATE = {
     notifyEmail: 'idrisabubakry@gmail.com'
   },
   categories: [
-    { id: 'cat_elec', name: 'Electrician', icon: 'fa-bolt', count: 2 },
+    { id: 'cat_elec', name: 'Electrician', icon: 'fa-bolt', count: 1 },
     { id: 'cat_plumb', name: 'Plumber', icon: 'fa-faucet-drip', count: 1 },
     { id: 'cat_hvac', name: 'AC & Cooling', icon: 'fa-snowflake', count: 1 },
     { id: 'cat_solar', name: 'Solar & Inverter', icon: 'fa-solar-panel', count: 1 },
-    { id: 'cat_clean', name: 'Home Cleaning', icon: 'fa-broom', count: 1 },
+    { id: 'cat_clean', name: 'Home Cleaning', icon: 'fa-broom', count: 0 },
     { id: 'cat_carp', name: 'Carpentry', icon: 'fa-hammer', count: 0 },
     { id: 'cat_paint', name: 'Painting & Decor', icon: 'fa-paint-roller', count: 0 }
   ],
@@ -49,6 +62,7 @@ const INITIAL_SEED_STATE = {
       yearsExp: 9,
       completedJobs: 148,
       baseRate: 15000,
+      createdAtMs: 1700000004000,
       avatar: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?auto=format&fit=crop&w=400&q=80',
       bio: 'COREN-certified residential and commercial electrical contractor specializing in full-house conduiting, distribution board upgrades, earth surge protection, and smart lighting automation.',
       badges: ['COREN Certified', '24/7 Emergency', 'Insured Work'],
@@ -58,13 +72,9 @@ const INITIAL_SEED_STATE = {
         { id: 's3', title: 'Chandelier & Smart Lighting Installation', price: 20000 },
         { id: 's4', title: 'Generator Automatic Changeover Switch', price: 28000 }
       ],
-      portfolio: [
-        '3-Phase Distribution Board Rewiring at Victoria Island',
-        'Smart Home Lighting Setup at Lekki Phase 1'
-      ],
+      portfolio: [],
       reviews: [
-        { id: 'r1', client: 'Chinedu O.', rating: 5, date: '2026-10-14', comment: 'Fixed a dangerous burning breaker in 45 minutes. Very neat work.' },
-        { id: 'r2', client: 'Mrs. Adebayo', rating: 5, date: '2026-10-22', comment: 'Punctual, polite, and transparent with material pricing.' }
+        { id: 'r1', client: 'Chinedu O.', rating: 5, date: '2026-10-14', comment: 'Fixed a dangerous burning breaker in 45 minutes. Very neat work.' }
       ]
     },
     {
@@ -81,21 +91,16 @@ const INITIAL_SEED_STATE = {
       yearsExp: 7,
       completedJobs: 94,
       baseRate: 25000,
+      createdAtMs: 1700000003000,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
       bio: 'Clean energy specialist delivering hybrid lithium inverter installations, solar roof array mounting, and load audit consulting for homes and offices.',
       badges: ['Lithium Specialist', '2-Yr Workmanship Warranty'],
       services: [
         { id: 's5', title: 'Inverter System Diagnostics & Maintenance', price: 25000 },
-        { id: 's6', title: '5kVA - 10kVA Hybrid Solar Installation (Labor)', price: 120000 },
-        { id: 's7', title: 'Solar Panel Roof Array Cleaning & Re-tensioning', price: 30000 }
+        { id: 's6', title: '5kVA - 10kVA Hybrid Solar Installation (Labor)', price: 120000 }
       ],
-      portfolio: [
-        '10kVA Lithium Solar Bank Setup in Maitama',
-        'Commercial Pharmacy Cold-Room Backup System'
-      ],
-      reviews: [
-        { id: 'r3', client: 'Dr. Ibrahim', rating: 5, date: '2026-10-19', comment: 'Clean trunking and zero power downtime since installation.' }
-      ]
+      portfolio: [],
+      reviews: []
     },
     {
       id: 'PRO-103',
@@ -111,21 +116,16 @@ const INITIAL_SEED_STATE = {
       yearsExp: 11,
       completedJobs: 210,
       baseRate: 12000,
+      createdAtMs: 1700000002000,
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
       bio: 'Modern concealed PPR piping, borehole water treatment plant servicing, pressure pump installation, and non-destructive leak detection.',
       badges: ['Leak Detection Pro', 'Same-Day Dispatch'],
       services: [
         { id: 's8', title: 'Concealed Pipe Leak Detection & Repair', price: 18000 },
-        { id: 's9', title: 'Water Heater & Pressure Pump Installation', price: 22000 },
-        { id: 's10', title: 'Complete Bathroom Sanitary Ware Fitting', price: 45000 }
+        { id: 's9', title: 'Water Heater & Pressure Pump Installation', price: 22000 }
       ],
-      portfolio: [
-        'Luxury Bathroom Concealed Piping at Ikoyi',
-        'Borehole Filtration System Overhaul'
-      ],
-      reviews: [
-        { id: 'r4', client: 'Kemi T.', rating: 5, date: '2026-10-28', comment: 'Solved our low water pressure issue permanently.' }
-      ]
+      portfolio: [],
+      reviews: []
     },
     {
       id: 'PRO-104',
@@ -141,21 +141,16 @@ const INITIAL_SEED_STATE = {
       yearsExp: 6,
       completedJobs: 118,
       baseRate: 10000,
+      createdAtMs: 1700000001000,
       avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80',
       bio: 'Split, cassette, and standing inverter AC installation, R410a/R32 eco-gas recharging, PCB board repair, and chemical pressure coil washing.',
       badges: ['HVAC Certified', 'Gas Leak Warranty'],
       services: [
         { id: 's11', title: 'Full Chemical AC Servicing & Coil Wash', price: 10000 },
-        { id: 's12', title: 'Split AC Mounting & Copper Piping', price: 20000 },
-        { id: 's13', title: 'R410a / R32 Refrigerant Gas Top-up', price: 18000 }
+        { id: 's12', title: 'Split AC Mounting & Copper Piping', price: 20000 }
       ],
-      portfolio: [
-        'Corporate Office 14-Unit AC Maintenance Contract',
-        'Ductless Split Installation in Surulere'
-      ],
-      reviews: [
-        { id: 'r5', client: 'Femi A.', rating: 5, date: '2026-10-25', comment: 'Brought a proper waterproof wash bag and left my wall spotless.' }
-      ]
+      portfolio: [],
+      reviews: []
     }
   ],
   bookings: [
@@ -175,123 +170,312 @@ const INITIAL_SEED_STATE = {
       urgency: 'Standard',
       notes: 'Main breaker keeps tripping when AC and water heater run together.',
       status: 'Confirmed',
-      createdAt: '2026-11-01 14:30'
+      createdAt: '2026-11-01 14:30',
+      createdAtMs: 1700000005000
     }
   ]
 };
 
 /* ==========================================================================
-   SECTION 2: DATABASE CORE ENGINE (ServeHubDB)
+   3. INTERNAL STATE & FIREBASE RUNTIME HOLDERS
    ========================================================================== */
+let memoryState = null;
+let firestoreDb = null;
+let fsModules = null;
+let isFirebaseConnected = false;
+let uiUpdateCallback = null;
+
+// Snapshots of cloud records for surgical diffing (only writes changed docs)
+const cloudRecordHashes = {
+  pros: new Map(),
+  bookings: new Map(),
+  meta: ''
+};
+
 const ServeHubDB = {
   /**
-   * Load state from LocalStorage or initialize with seed data
+   * Check if Firebase Config has been filled in
+   */
+  isConfigured() {
+    return Boolean(
+      FIREBASE_CONFIG.apiKey &&
+      !FIREBASE_CONFIG.apiKey.includes('PASTE_YOUR') &&
+      FIREBASE_CONFIG.projectId &&
+      !FIREBASE_CONFIG.projectId.includes('PASTE_YOUR')
+    );
+  },
+
+  /**
+   * Initialize Real-Time Firestore Listeners across 'professionals', 'bookings', and 'platform/meta'
+   */
+  async initRealtimeSync(onUpdate) {
+    if (typeof onUpdate === 'function') {
+      uiUpdateCallback = onUpdate;
+    }
+
+    // Load initial local cache immediately for fast first paint
+    this.getState();
+
+    if (!this.isConfigured()) {
+      console.warn('Firebase is not configured yet in js/db.js. Using local browser storage.');
+      return { ok: false, reason: 'Firebase config not set in js/db.js' };
+    }
+
+    try {
+      if (!firestoreDb) {
+        const [{ initializeApp }, firestore] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js')
+        ]);
+
+        const app = initializeApp(FIREBASE_CONFIG);
+        firestoreDb = firestore.getFirestore(app);
+        fsModules = firestore;
+
+        // Check if database is brand new; if so, seed initial collections
+        const metaRef = fsModules.doc(firestoreDb, 'platform', 'meta');
+        const metaSnap = await fsModules.getDoc(metaRef);
+
+        if (!metaSnap.exists()) {
+          await this.seedFirestore(INITIAL_SEED_STATE);
+        }
+
+        // Attach real-time listener 1: Platform Settings & Categories
+        fsModules.onSnapshot(metaRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            memoryState.settings = data.settings || memoryState.settings;
+            memoryState.categories = data.categories || memoryState.categories;
+            cloudRecordHashes.meta = JSON.stringify({
+              settings: memoryState.settings,
+              categories: memoryState.categories
+            });
+            this.recalculateCategoryCounts();
+            this.triggerUIRefresh();
+          }
+        });
+
+        // Attach real-time listener 2: Professionals Collection
+        const prosCol = fsModules.collection(firestoreDb, 'professionals');
+        fsModules.onSnapshot(prosCol, (snap) => {
+          const list = [];
+          cloudRecordHashes.pros.clear();
+          snap.forEach((docSnap) => {
+            const pro = docSnap.data();
+            list.push(pro);
+            cloudRecordHashes.pros.set(pro.id, JSON.stringify(pro));
+          });
+          list.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+          memoryState.professionals = list;
+          this.recalculateCategoryCounts();
+          this.triggerUIRefresh();
+        });
+
+        // Attach real-time listener 3: Bookings Collection
+        const bookingsCol = fsModules.collection(firestoreDb, 'bookings');
+        fsModules.onSnapshot(bookingsCol, (snap) => {
+          const list = [];
+          cloudRecordHashes.bookings.clear();
+          snap.forEach((docSnap) => {
+            const b = docSnap.data();
+            list.push(b);
+            cloudRecordHashes.bookings.set(b.id, JSON.stringify(b));
+          });
+          list.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+          memoryState.bookings = list;
+          this.triggerUIRefresh();
+        });
+
+        isFirebaseConnected = true;
+      }
+      return { ok: true, state: memoryState };
+    } catch (err) {
+      console.error('Firebase Realtime Sync Error:', err);
+      return { ok: false, reason: err.message };
+    }
+  },
+
+  /**
+   * Seed an empty Firestore database with initial collections
+   */
+  async seedFirestore(seedState) {
+    if (!firestoreDb || !fsModules) return;
+    const batch = fsModules.writeBatch(firestoreDb);
+
+    const metaRef = fsModules.doc(firestoreDb, 'platform', 'meta');
+    const metaPayload = {
+      settings: seedState.settings,
+      categories: seedState.categories
+    };
+    batch.set(metaRef, metaPayload);
+    cloudRecordHashes.meta = JSON.stringify(metaPayload);
+
+    seedState.professionals.forEach((pro, idx) => {
+      if (!pro.createdAtMs) pro.createdAtMs = Date.now() - idx * 1000;
+      const proRef = fsModules.doc(firestoreDb, 'professionals', pro.id);
+      batch.set(proRef, pro);
+      cloudRecordHashes.pros.set(pro.id, JSON.stringify(pro));
+    });
+
+    seedState.bookings.forEach((b, idx) => {
+      if (!b.createdAtMs) b.createdAtMs = Date.now() - idx * 1000;
+      const bRef = fsModules.doc(firestoreDb, 'bookings', b.id);
+      batch.set(bRef, b);
+      cloudRecordHashes.bookings.set(b.id, JSON.stringify(b));
+    });
+
+    await batch.commit();
+  },
+
+  recalculateCategoryCounts() {
+    if (!memoryState || !memoryState.categories) return;
+    memoryState.categories.forEach(cat => {
+      cat.count = (memoryState.professionals || []).filter(p => p.category === cat.name).length;
+    });
+    try {
+      localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(memoryState));
+    } catch {}
+  },
+
+  triggerUIRefresh() {
+    if (typeof uiUpdateCallback === 'function') {
+      uiUpdateCallback(memoryState);
+    }
+  },
+
+  /**
+   * Synchronous State Getter (Used by App and AdminApp)
    */
   getState() {
+    if (memoryState) return memoryState;
     try {
       const raw = localStorage.getItem(DB_STORAGE_KEY);
-      if (!raw) {
-        this.saveState(INITIAL_SEED_STATE, false);
-        return JSON.parse(JSON.stringify(INITIAL_SEED_STATE));
+      if (raw) {
+        memoryState = JSON.parse(raw);
+        return memoryState;
       }
-      const parsed = JSON.parse(raw);
-      // Ensure backward compatibility if new fields are added
-      if (!parsed.settings.adminUsername) parsed.settings.adminUsername = 'admin';
-      if (!parsed.settings.adminPassword) parsed.settings.adminPassword = 'admin123';
-      return parsed;
-    } catch (err) {
-      console.error('Database Read Error:', err);
-      return JSON.parse(JSON.stringify(INITIAL_SEED_STATE));
-    }
+    } catch {}
+    memoryState = JSON.parse(JSON.stringify(INITIAL_SEED_STATE));
+    return memoryState;
   },
 
   /**
-   * Save state to LocalStorage and optionally push to JSONBin.io Cloud
+   * Surgical Multi-Collection State Saver:
+   * Updates memory + LocalStorage immediately and writes ONLY changed/added/deleted
+   * documents to Firebase Firestore via writeBatch.
    */
-  saveState(newState, syncCloud = true) {
+  async saveState(newState, syncCloud = true) {
+    newState.categories.forEach(cat => {
+      cat.count = newState.professionals.filter(p => p.category === cat.name).length;
+    });
+
+    memoryState = newState;
     try {
-      // Recalculate category counts dynamically before saving
-      newState.categories.forEach(cat => {
-        cat.count = newState.professionals.filter(p => p.category === cat.name).length;
-      });
       localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(newState));
-      if (syncCloud) {
-        this.pushToCloud(newState);
-      }
-    } catch (err) {
-      console.error('Database Save Error:', err);
+    } catch {}
+
+    if (syncCloud && firestoreDb && fsModules) {
+      await this.pushToCloud(newState);
     }
-  },
-
-  /**
-   * Reset database to factory defaults
-   */
-  resetToFactory() {
-    localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(INITIAL_SEED_STATE));
-    return this.getState();
-  },
-
-  /* ========================================================================
-     SECTION 3: CLOUD SYNC ENGINE (JSONBin.io Integration)
-     ======================================================================== */
-  getCloudConfig() {
-    try {
-      return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || { binId: '6ae8ad79ffd5d160539fd72e', apiKey: '$2a$10$q.tJa2P9V2hnmTwVSwkqiOELFjI1WrwoHuJ23HlJy37q6bDk.HkKm' };
-    } catch {
-      return { binId: '', apiKey: '' };
-    }
-  },
-
-  saveCloudConfig(binId, apiKey) {
-    localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify({
-      binId: binId.trim(),
-      apiKey: apiKey.trim()
-    }));
   },
 
   async pushToCloud(stateData = null) {
-    const { binId, apiKey } = this.getCloudConfig();
-    if (!binId || !apiKey) return { ok: false, reason: 'No cloud credentials configured' };
+    if (!firestoreDb || !fsModules) {
+      return { ok: false, reason: 'Firebase not initialized' };
+    }
 
-    const payload = stateData || this.getState();
+    const state = stateData || memoryState;
     try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': apiKey
-        },
-        body: JSON.stringify(payload)
+      const batch = fsModules.writeBatch(firestoreDb);
+      let opsCount = 0;
+
+      // 1. Sync Platform Meta (Settings & Categories)
+      const metaPayload = {
+        settings: state.settings,
+        categories: state.categories
+      };
+      const metaStr = JSON.stringify(metaPayload);
+      if (metaStr !== cloudRecordHashes.meta) {
+        batch.set(fsModules.doc(firestoreDb, 'platform', 'meta'), metaPayload);
+        cloudRecordHashes.meta = metaStr;
+        opsCount++;
+      }
+
+      // 2. Sync Professionals (Upsert new/modified, Delete removed)
+      const currentProIds = new Set();
+      state.professionals.forEach(pro => {
+        if (!pro.createdAtMs) pro.createdAtMs = Date.now();
+        currentProIds.add(pro.id);
+        const proStr = JSON.stringify(pro);
+        if (cloudRecordHashes.pros.get(pro.id) !== proStr) {
+          batch.set(fsModules.doc(firestoreDb, 'professionals', pro.id), pro);
+          cloudRecordHashes.pros.set(pro.id, proStr);
+          opsCount++;
+        }
       });
-      return { ok: res.ok, status: res.status };
+
+      for (const existingProId of cloudRecordHashes.pros.keys()) {
+        if (!currentProIds.has(existingProId)) {
+          batch.delete(fsModules.doc(firestoreDb, 'professionals', existingProId));
+          cloudRecordHashes.pros.delete(existingProId);
+          opsCount++;
+        }
+      }
+
+      // 3. Sync Bookings (Upsert new/modified, Delete removed)
+      const currentBookingIds = new Set();
+      state.bookings.forEach(b => {
+        if (!b.createdAtMs) b.createdAtMs = Date.now();
+        currentBookingIds.add(b.id);
+        const bStr = JSON.stringify(b);
+        if (cloudRecordHashes.bookings.get(b.id) !== bStr) {
+          batch.set(fsModules.doc(firestoreDb, 'bookings', b.id), b);
+          cloudRecordHashes.bookings.set(b.id, bStr);
+          opsCount++;
+        }
+      });
+
+      for (const existingBookingId of cloudRecordHashes.bookings.keys()) {
+        if (!currentBookingIds.has(existingBookingId)) {
+          batch.delete(fsModules.doc(firestoreDb, 'bookings', existingBookingId));
+          cloudRecordHashes.bookings.delete(existingBookingId);
+          opsCount++;
+        }
+      }
+
+      if (opsCount > 0) {
+        await batch.commit();
+      }
+      return { ok: true, opsCount };
     } catch (err) {
-      console.warn('Cloud Push Warning:', err);
+      console.error('Firestore Batch Write Error:', err);
       return { ok: false, reason: err.message };
     }
   },
 
   async pullFromCloud() {
-    const { binId, apiKey } = this.getCloudConfig();
-    if (!binId || !apiKey) return { ok: false, reason: 'Missing Bin ID or API Key' };
+    return await this.initRealtimeSync();
+  },
 
-    try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-        headers: { 'X-Master-Key': apiKey }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data && data.record && data.record.professionals) {
-        this.saveState(data.record, false);
-        return { ok: true, state: data.record };
-      }
-      return { ok: false, reason: 'Invalid JSONBin structure' };
-    } catch (err) {
-      return { ok: false, reason: err.message };
-    }
+  getCloudConfig() {
+    return {
+      binId: this.isConfigured() ? FIREBASE_CONFIG.projectId : '',
+      apiKey: this.isConfigured() ? 'FIREBASE_FIRESTORE_ACTIVE' : ''
+    };
+  },
+
+  saveCloudConfig() {
+    // Managed via FIREBASE_CONFIG in js/db.js
+  },
+
+  async resetToFactory() {
+    const fresh = JSON.parse(JSON.stringify(INITIAL_SEED_STATE));
+    await this.saveState(fresh, true);
+    return fresh;
   },
 
   /* ========================================================================
-     SECTION 4: PROFESSIONAL AUTHENTICATION & SESSION MANAGEMENT
+     AUTHENTICATION & UTILITIES
      ======================================================================== */
   authenticatePro(username, password) {
     const state = this.getState();
@@ -320,32 +504,29 @@ const ServeHubDB = {
     sessionStorage.removeItem(PRO_SESSION_KEY);
   },
 
-  /* ========================================================================
-     SECTION 5: ADMIN AUTHENTICATION & SESSION MANAGEMENT
-     ======================================================================== */
-  authenticateAdmin(username, password) {
-    const { settings } = this.getState();
+ authenticateAdmin(username, password) {
+    const state = this.getState();
+    const settings = state.settings || { adminUsername: 'admin', adminPassword: 'admin123' };
+    
     if (
-      username.trim().toLowerCase() === settings.adminUsername.toLowerCase() &&
-      password.trim() === settings.adminPassword
+      (username || '').trim().toLowerCase() === (settings.adminUsername || 'admin').toLowerCase() &&
+      (password || '').trim() === (settings.adminPassword || 'admin123')
     ) {
-      sessionStorage.setItem(ADMIN_SESSION_KEY, 'ACTIVE');
+      // Use localStorage instead of sessionStorage so it persists reliably
+      localStorage.setItem('SERVEHUB_ADMIN_ACTIVE_SESSION', 'ACTIVE');
       return true;
     }
     return false;
   },
 
   isAdminLoggedIn() {
-    return sessionStorage.getItem(ADMIN_SESSION_KEY) === 'ACTIVE';
+    return localStorage.setItem ? localStorage.getItem('SERVEHUB_ADMIN_ACTIVE_SESSION') === 'ACTIVE' : false;
   },
 
   logoutAdmin() {
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    localStorage.removeItem('SERVEHUB_ADMIN_ACTIVE_SESSION');
   },
 
-  /* ========================================================================
-     SECTION 6: SHARED UTILITY HELPERS
-     ======================================================================== */
   escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -367,9 +548,6 @@ const ServeHubDB = {
     return (sum / pro.reviews.length).toFixed(1);
   },
 
-  /**
-   * Compress uploaded image into lightweight Base64 string via HTML5 Canvas
-   */
   compressImage(file, maxWidth = 360, quality = 0.78) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -392,3 +570,5 @@ const ServeHubDB = {
     });
   }
 };
+// Expose database engine globally for module-to-module communication
+window.ServeHubDB = ServeHubDB;

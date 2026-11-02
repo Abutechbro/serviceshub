@@ -1,26 +1,44 @@
 /**
  * ============================================================================
  * SERVEHUB PRO - ISOLATED ADMIN WORKSPACE CONTROLLER (js/admin.js)
- * Enforces strict separation between the Login Gateway and the Multi-Tab
- * Admin Control Center (Bookings, Verify Pros, Categories, Cloud & Security)
+ * Features:
+ * - Real-time Firebase Firestore synchronization via ServeHubDB.initRealtimeSync()
+ * - Multi-tab Admin Control Center (Bookings, Verify Pros, Categories, Cloud/Security)
+ * - Instant cross-device updates across all phones & browsers
  * ============================================================================
  */
 
 const AdminApp = {
   activeTab: 'bookings',
 
-  init() {
+  /* ========================================================================
+     1. INITIALIZATION & REAL-TIME FIREBASE SYNC
+     ======================================================================== */
+  async init() {
+    this.checkAuth();
+
     window.addEventListener('storage', () => {
       if (ServeHubDB.isAdminLoggedIn()) this.renderDashboard();
     });
 
-    this.checkAuth();
+    // Subscribe to live Firebase Firestore updates in the Admin Portal
+    await ServeHubDB.initRealtimeSync(() => {
+      if (ServeHubDB.isAdminLoggedIn()) {
+        this.renderDashboard();
+      }
+    });
   },
 
   checkAuth() {
     const loggedIn = ServeHubDB.isAdminLoggedIn();
-    document.getElementById('admin-login-screen').classList.toggle('hidden', loggedIn);
-    document.getElementById('admin-dashboard-screen').classList.toggle('hidden', !loggedIn);
+    
+    // Toggle visibility based on session state
+    const loginScreen = document.getElementById('admin-login-screen');
+    const dashboardScreen = document.getElementById('admin-dashboard-screen');
+
+    if (loginScreen) loginScreen.classList.toggle('hidden', loggedIn);
+    if (dashboardScreen) dashboardScreen.classList.toggle('hidden', !loggedIn);
+
     if (loggedIn) {
       this.renderDashboard();
       this.switchAdminTab(this.activeTab);
@@ -44,14 +62,20 @@ const AdminApp = {
     });
   },
 
-  handleLogin(e) {
+  async handleLogin(e) {
     e.preventDefault();
     const user = document.getElementById('admin-user').value;
     const pass = document.getElementById('admin-pass').value;
 
     if (ServeHubDB.authenticateAdmin(user, pass)) {
       this.notify('Admin workspace unlocked.');
-      this.checkAuth();
+      
+      // Force-hide login screen and show dashboard container directly
+      document.getElementById('admin-login-screen')?.classList.add('hidden');
+      document.getElementById('admin-dashboard-screen')?.classList.remove('hidden');
+      
+      this.renderDashboard();
+      this.switchAdminTab(this.activeTab);
     } else {
       this.notify('Invalid admin username or password.', 'error');
     }
@@ -63,6 +87,9 @@ const AdminApp = {
     this.notify('Logged out of Admin Control Center.');
   },
 
+  /* ========================================================================
+     2. DASHBOARD RENDERING & REAL-TIME METRICS
+     ======================================================================== */
   renderDashboard() {
     const state = ServeHubDB.getState();
 
@@ -75,25 +102,41 @@ const AdminApp = {
     document.getElementById('adm-kpi-verified').textContent = state.professionals.filter(p => p.verified).length;
     document.getElementById('adm-kpi-gmv').textContent = ServeHubDB.formatCurrency(gmv);
 
+    // Update Cloud Status Badge for Firebase
     const cloud = ServeHubDB.getCloudConfig();
     const badge = document.getElementById('cloud-status-badge');
-    if (cloud.binId && cloud.apiKey) {
-      badge.textContent = 'Cloud Sync Active';
-      badge.className = 'ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300';
-      document.getElementById('cloud-bin-id').value = cloud.binId;
-      document.getElementById('cloud-api-key').value = cloud.apiKey;
+    if (badge) {
+      if (cloud.binId && cloud.apiKey) {
+        badge.textContent = `Firebase Live (${cloud.binId})`;
+        badge.className = 'ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300';
+      } else {
+        badge.textContent = 'Local Mode (Set FIREBASE_CONFIG in db.js)';
+        badge.className = 'ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300';
+      }
     }
 
+    const binInput = document.getElementById('cloud-bin-id');
+    const keyInput = document.getElementById('cloud-api-key');
+    if (binInput && cloud.binId) binInput.value = cloud.binId;
+    if (keyInput && cloud.apiKey) keyInput.value = cloud.apiKey;
+
     const secUser = document.getElementById('sec-admin-user');
-    if (secUser) secUser.value = state.settings.adminUsername || 'admin';
+    if (secUser && document.activeElement !== secUser) {
+      secUser.value = state.settings.adminUsername || 'admin';
+    }
 
     this.renderBookingsTable(state);
     this.renderProsTable(state);
     this.renderCategoriesList(state);
   },
 
+  /* ========================================================================
+     3. MASTER BOOKINGS PIPELINE
+     ======================================================================== */
   renderBookingsTable(state) {
     const tbody = document.getElementById('adm-bookings-tbody');
+    if (!tbody) return;
+
     if (state.bookings.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No bookings recorded yet.</td></tr>`;
       return;
@@ -128,28 +171,38 @@ const AdminApp = {
     `).join('');
   },
 
-  updateBookingStatus(bookingId, status) {
+  async updateBookingStatus(bookingId, status) {
     const state = ServeHubDB.getState();
     const b = state.bookings.find(item => item.id === bookingId);
     if (b) {
       b.status = status;
-      ServeHubDB.saveState(state);
+      await ServeHubDB.saveState(state);
       this.renderDashboard();
       this.notify(`Booking ${bookingId} updated to ${status}`);
     }
   },
 
-  deleteBooking(bookingId) {
+  async deleteBooking(bookingId) {
     if (!confirm(`Delete booking ${bookingId}?`)) return;
     const state = ServeHubDB.getState();
     state.bookings = state.bookings.filter(b => b.id !== bookingId);
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     this.renderDashboard();
     this.notify('Booking deleted.');
   },
 
+  /* ========================================================================
+     4. PROFESSIONALS VERIFICATION & MODERATION
+     ======================================================================== */
   renderProsTable(state) {
     const tbody = document.getElementById('adm-pros-tbody');
+    if (!tbody) return;
+
+    if (state.professionals.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No professionals registered yet.</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = state.professionals.map(p => `
       <tr class="hover:bg-slate-50">
         <td class="py-3 px-3 flex items-center gap-2.5">
@@ -181,28 +234,33 @@ const AdminApp = {
     `).join('');
   },
 
-  toggleVerifyPro(proId) {
+  async toggleVerifyPro(proId) {
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === proId);
     if (pro) {
       pro.verified = !pro.verified;
-      ServeHubDB.saveState(state);
+      await ServeHubDB.saveState(state);
       this.renderDashboard();
       this.notify(`${pro.businessName} verification set to ${pro.verified}`);
     }
   },
 
-  deletePro(proId) {
+  async deletePro(proId) {
     if (!confirm('Remove this professional from the platform?')) return;
     const state = ServeHubDB.getState();
     state.professionals = state.professionals.filter(p => p.id !== proId);
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     this.renderDashboard();
     this.notify('Professional removed.');
   },
 
+  /* ========================================================================
+     5. CATEGORIES, CLOUD SYNC & SECURITY SETTINGS
+     ======================================================================== */
   renderCategoriesList(state) {
     const list = document.getElementById('adm-categories-list');
+    if (!list) return;
+
     list.innerHTML = state.categories.map(c => `
       <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
         <span class="font-bold text-slate-800"><i class="fa-solid ${ServeHubDB.escapeHTML(c.icon)} text-blue-600 mr-2"></i>${ServeHubDB.escapeHTML(c.name)} (${c.count} pros)</span>
@@ -211,56 +269,53 @@ const AdminApp = {
     `).join('');
   },
 
-  addCategory(e) {
+  async addCategory(e) {
     e.preventDefault();
     const name = document.getElementById('new-cat-name').value.trim();
     const icon = document.getElementById('new-cat-icon').value.trim() || 'fa-wrench';
     const state = ServeHubDB.getState();
 
     state.categories.push({ id: 'cat_' + Date.now(), name, icon, count: 0 });
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     e.target.reset();
     this.renderDashboard();
     this.notify(`Category "${name}" added.`);
   },
 
-  deleteCategory(catId) {
+  async deleteCategory(catId) {
     const state = ServeHubDB.getState();
     state.categories = state.categories.filter(c => c.id !== catId);
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     this.renderDashboard();
+    this.notify('Category removed.');
   },
 
   saveCloudSettings(e) {
     e.preventDefault();
-    const binId = document.getElementById('cloud-bin-id').value;
-    const apiKey = document.getElementById('cloud-api-key').value;
-    ServeHubDB.saveCloudConfig(binId, apiKey);
-    this.renderDashboard();
-    this.notify('Cloud credentials saved.');
+    this.notify('Firebase credentials are configured directly inside js/db.js (FIREBASE_CONFIG).');
   },
 
-  updateAdminCredentials(e) {
+  async updateAdminCredentials(e) {
     e.preventDefault();
     const state = ServeHubDB.getState();
     state.settings.adminUsername = document.getElementById('sec-admin-user').value.trim();
     state.settings.adminPassword = document.getElementById('sec-admin-pass').value.trim();
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     document.getElementById('sec-admin-pass').value = '';
-    this.notify('Admin login credentials updated!');
+    this.notify('Admin login credentials updated globally!');
   },
 
   async syncNow(direction) {
     if (direction === 'push') {
       const res = await ServeHubDB.pushToCloud();
-      this.notify(res.ok ? 'Database pushed to JSONBin.io Cloud!' : `Push failed: ${res.reason}`, res.ok ? 'success' : 'error');
+      this.notify(res.ok ? 'All records synced to Firebase Firestore!' : `Sync failed: ${res.reason}`, res.ok ? 'success' : 'error');
     } else {
       const res = await ServeHubDB.pullFromCloud();
       if (res.ok) {
         this.renderDashboard();
-        this.notify('Latest data pulled from JSONBin.io Cloud!');
+        this.notify('Connected to live Firebase Firestore stream!');
       } else {
-        this.notify(`Pull failed: ${res.reason}`, 'error');
+        this.notify(`Sync failed: ${res.reason}`, 'error');
       }
     }
   },
@@ -277,13 +332,13 @@ const AdminApp = {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const parsed = JSON.parse(ev.target.result);
         if (parsed.professionals && parsed.bookings) {
-          ServeHubDB.saveState(parsed);
+          await ServeHubDB.saveState(parsed);
           this.renderDashboard();
-          this.notify('Database backup restored!');
+          this.notify('Database backup restored and synced to Firebase!');
         }
       } catch {
         this.notify('Invalid JSON backup file.', 'error');
@@ -292,15 +347,16 @@ const AdminApp = {
     reader.readAsText(file);
   },
 
-  resetDatabase() {
+  async resetDatabase() {
     if (!confirm('Reset all data back to factory seed defaults?')) return;
-    ServeHubDB.resetToFactory();
+    await ServeHubDB.resetToFactory();
     this.renderDashboard();
     this.notify('Database reset to factory defaults.');
   },
 
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `${type === 'error' ? 'bg-rose-600' : 'bg-slate-900'} text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 animate-fade-in`;
     toast.innerHTML = `<span>${ServeHubDB.escapeHTML(message)}</span>`;
@@ -310,3 +366,5 @@ const AdminApp = {
 };
 
 document.addEventListener('DOMContentLoaded', () => AdminApp.init());
+// Expose AdminApp to global window scope so HTML onclick handlers can find it
+window.AdminApp = AdminApp;

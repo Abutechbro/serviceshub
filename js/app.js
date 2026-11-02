@@ -2,7 +2,8 @@
  * ============================================================================
  * SERVEHUB PRO - FRONTEND & POPUP AUTH CONTROLLER (js/app.js)
  * Features:
- * - Popup Modal for Pro Login & Registration (with toggle link "Don't have an account? Register here")
+ * - Real-time Firebase Firestore synchronization via ServeHubDB.initRealtimeSync()
+ * - Popup Modal for Pro Login & Registration
  * - Strict role-based navigation isolation when logged in as a Professional
  * ============================================================================
  */
@@ -12,17 +13,22 @@ const App = {
   activeTab: 'marketplace',
   activeProWorkspaceTab: 'bookings',
 
+  /* ========================================================================
+     1. INITIALIZATION & REAL-TIME FIREBASE SYNC
+     ======================================================================== */
   async init() {
-    const cloud = ServeHubDB.getCloudConfig();
-    if (cloud.binId && cloud.apiKey) {
-      await ServeHubDB.pullFromCloud();
-    }
+    // Initial render from local cache for instant page paint
+    this.renderAll();
 
+    // Listen for cross-tab storage updates
     window.addEventListener('storage', () => {
       this.renderAll();
     });
 
-    this.renderAll();
+    // Subscribe to live Firebase Firestore updates across all devices
+    await ServeHubDB.initRealtimeSync(() => {
+      this.renderAll();
+    });
   },
 
   renderAll() {
@@ -34,7 +40,7 @@ const App = {
   },
 
   /* ========================================================================
-     POPUP AUTH MODAL CONTROLS
+     2. POPUP AUTH MODAL CONTROLS (LOGIN & REGISTER)
      ======================================================================== */
   openAuthModal(mode = 'login') {
     const modal = document.getElementById('auth-modal');
@@ -42,9 +48,10 @@ const App = {
     const registerDiv = document.getElementById('auth-modal-register');
     if (!modal) return;
 
+    this.populateCategorySelect();
     modal.classList.remove('hidden');
-    loginDiv.classList.toggle('hidden', mode !== 'login');
-    registerDiv.classList.toggle('hidden', mode !== 'register');
+    loginDiv?.classList.toggle('hidden', mode !== 'login');
+    registerDiv?.classList.toggle('hidden', mode !== 'register');
   },
 
   closeAuthModal() {
@@ -57,12 +64,13 @@ const App = {
     const registerDiv = document.getElementById('auth-modal-register');
     if (!loginDiv || !registerDiv) return;
 
+    this.populateCategorySelect();
     loginDiv.classList.toggle('hidden', mode !== 'login');
     registerDiv.classList.toggle('hidden', mode !== 'register');
   },
 
   /* ========================================================================
-     ROLE-BASED NAVIGATION ISOLATION
+     3. ROLE-BASED NAVIGATION ISOLATION (GUEST vs LOGGED-IN PRO)
      ======================================================================== */
   syncRoleNavigationUI() {
     const activePro = ServeHubDB.getActivePro();
@@ -129,6 +137,9 @@ const App = {
         brandSubtitle.textContent = 'Verified Pros';
         brandSubtitle.className = 'block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1';
       }
+
+      document.getElementById('view-pro-portal')?.classList.add('hidden');
+      document.getElementById(`view-${this.activeTab}`)?.classList.remove('hidden');
     }
   },
 
@@ -158,6 +169,13 @@ const App = {
         navBtn.className = v === tabId
           ? 'nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm'
           : 'nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+      }
+
+      const mnavBtn = document.getElementById(`mnav-${v}`);
+      if (mnavBtn) {
+        mnavBtn.className = v === tabId
+          ? 'flex-1 py-1.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600'
+          : 'flex-1 py-1.5 text-xs font-bold text-slate-500';
       }
     });
 
@@ -194,7 +212,7 @@ const App = {
   },
 
   /* ========================================================================
-     MARKETPLACE & DIRECTORY
+     4. MARKETPLACE & DIRECTORY RENDERING
      ======================================================================== */
   renderCategories() {
     const state = ServeHubDB.getState();
@@ -243,10 +261,16 @@ const App = {
 
   resetFilters() {
     this.activeCategory = 'All';
-    document.getElementById('search-keyword').value = '';
-    document.getElementById('search-location').value = '';
-    document.getElementById('filter-verified').checked = false;
-    document.getElementById('filter-available').checked = false;
+    const kw = document.getElementById('search-keyword');
+    const loc = document.getElementById('search-location');
+    const ver = document.getElementById('filter-verified');
+    const avail = document.getElementById('filter-available');
+
+    if (kw) kw.value = '';
+    if (loc) loc.value = '';
+    if (ver) ver.checked = false;
+    if (avail) avail.checked = false;
+
     this.renderCategories();
     this.renderMarketplace();
   },
@@ -370,7 +394,7 @@ const App = {
   },
 
   /* ========================================================================
-     SHOWROOM MODAL & BOOKING
+     5. SHOWROOM MODAL, REVIEWS & BOOKING CREATION
      ======================================================================== */
   openShowroom(proId) {
     const state = ServeHubDB.getState();
@@ -555,12 +579,13 @@ const App = {
     document.getElementById('showroom-modal').classList.add('hidden');
   },
 
-  submitReview(e, proId) {
+  async submitReview(e, proId) {
     e.preventDefault();
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === proId);
     if (!pro) return;
 
+    if (!Array.isArray(pro.reviews)) pro.reviews = [];
     pro.reviews.unshift({
       id: 'rev_' + Date.now(),
       client: document.getElementById('rev-client-name').value.trim(),
@@ -569,16 +594,16 @@ const App = {
       comment: document.getElementById('rev-comment').value.trim()
     });
 
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     this.openShowroom(proId);
     this.renderMarketplace();
     this.notify('Review posted! Thank you for your feedback.');
   },
 
   /* ========================================================================
-     BOOKINGS & TRACKER
+     6. BOOKING SUBMISSION, RECEIPT & LIVE TRACKER
      ======================================================================== */
-  submitBooking(e, proId) {
+  async submitBooking(e, proId) {
     e.preventDefault();
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === proId);
@@ -605,11 +630,12 @@ const App = {
       urgency: urgSelect.value,
       notes: document.getElementById('book-notes').value.trim() || 'None',
       status: 'Pending',
-      createdAt: new Date().toLocaleString()
+      createdAt: new Date().toLocaleString(),
+      createdAtMs: Date.now()
     };
 
     state.bookings.unshift(newBooking);
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
 
     this.closeShowroom();
     this.showBookingReceipt(newBooking);
@@ -683,7 +709,7 @@ const App = {
   trackBooking() {
     const query = (document.getElementById('tracker-query')?.value || '').trim().toLowerCase();
     const box = document.getElementById('tracker-result-box');
-    if (!query) return;
+    if (!query || !box) return;
 
     const state = ServeHubDB.getState();
     const matches = state.bookings.filter(
@@ -734,7 +760,7 @@ const App = {
   },
 
   /* ========================================================================
-     PRO AUTHENTICATION & WORKSPACE
+     7. PRO AUTHENTICATION & ISOLATED WORKSPACE MANAGEMENT
      ======================================================================== */
   populateCategorySelect() {
     const select = document.getElementById('reg-category');
@@ -784,6 +810,7 @@ const App = {
 
   addRegServiceRow() {
     const container = document.getElementById('reg-services-list');
+    if (!container) return;
     const div = document.createElement('div');
     div.className = 'grid grid-cols-12 gap-2 reg-service-item';
     div.innerHTML = `
@@ -838,6 +865,7 @@ const App = {
       yearsExp: Number(document.getElementById('reg-exp').value || 3),
       completedJobs: 0,
       baseRate: Number(document.getElementById('reg-rate').value || 10000),
+      createdAtMs: Date.now(),
       avatar: avatarData,
       bio: document.getElementById('reg-bio').value.trim(),
       badges: ['Registered Pro'],
@@ -847,7 +875,7 @@ const App = {
     };
 
     state.professionals.unshift(newPro);
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     ServeHubDB.authenticatePro(username, password);
 
     e.target.reset();
@@ -936,16 +964,19 @@ const App = {
       </div>
     `).join('');
 
-    document.getElementById('edit-pro-business').value = activePro.businessName || '';
-    document.getElementById('edit-pro-name').value = activePro.name || '';
-    document.getElementById('edit-pro-location').value = activePro.location || '';
-    document.getElementById('edit-pro-phone').value = activePro.phone || '';
-    document.getElementById('edit-pro-rate').value = activePro.baseRate || 10000;
-    document.getElementById('edit-pro-bio').value = activePro.bio || '';
-    document.getElementById('edit-pro-password').value = '';
+    // Only overwrite form inputs if user is not actively typing in them
+    if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      document.getElementById('edit-pro-business').value = activePro.businessName || '';
+      document.getElementById('edit-pro-name').value = activePro.name || '';
+      document.getElementById('edit-pro-location').value = activePro.location || '';
+      document.getElementById('edit-pro-phone').value = activePro.phone || '';
+      document.getElementById('edit-pro-rate').value = activePro.baseRate || 10000;
+      document.getElementById('edit-pro-bio').value = activePro.bio || '';
+      document.getElementById('edit-pro-password').value = '';
+    }
   },
 
-  saveProProfileSettings(e) {
+  async saveProProfileSettings(e) {
     e.preventDefault();
     const activePro = ServeHubDB.getActivePro();
     if (!activePro) return;
@@ -966,36 +997,36 @@ const App = {
       pro.password = newPass;
     }
 
-    ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state);
     this.renderAll();
     this.notify('Business profile settings updated!');
   },
 
-  toggleProAvailability() {
+  async toggleProAvailability() {
     const activePro = ServeHubDB.getActivePro();
     if (!activePro) return;
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === activePro.id);
     if (pro) {
       pro.available = !pro.available;
-      ServeHubDB.saveState(state);
+      await ServeHubDB.saveState(state);
       this.renderAll();
       this.notify(`Status updated to ${pro.available ? 'Available Now' : 'Busy'}`);
     }
   },
 
-  updateBookingStatusByPro(bookingId, newStatus) {
+  async updateBookingStatusByPro(bookingId, newStatus) {
     const state = ServeHubDB.getState();
     const booking = state.bookings.find(b => b.id === bookingId);
     if (booking) {
       booking.status = newStatus;
-      ServeHubDB.saveState(state);
+      await ServeHubDB.saveState(state);
       this.renderProPortalState();
       this.notify(`Booking ${bookingId} marked as ${newStatus}`);
     }
   },
 
-  addServiceFromDashboard(e) {
+  async addServiceFromDashboard(e) {
     e.preventDefault();
     const activePro = ServeHubDB.getActivePro();
     if (!activePro) return;
@@ -1006,27 +1037,31 @@ const App = {
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === activePro.id);
     if (pro) {
+      if (!Array.isArray(pro.services)) pro.services = [];
       pro.services.push({ id: 'srv_' + Date.now(), title, price });
-      ServeHubDB.saveState(state);
+      await ServeHubDB.saveState(state);
       e.target.reset();
       this.renderAll();
       this.notify('New service added to your showroom!');
     }
   },
 
-  deleteProService(srvId) {
+  async deleteProService(srvId) {
     const activePro = ServeHubDB.getActivePro();
     if (!activePro) return;
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === activePro.id);
     if (pro) {
-      pro.services = pro.services.filter(s => s.id !== srvId);
-      ServeHubDB.saveState(state);
+      pro.services = (pro.services || []).filter(s => s.id !== srvId);
+      await ServeHubDB.saveState(state);
       this.renderAll();
       this.notify('Service removed.');
     }
   },
 
+  /* ========================================================================
+     8. TOAST NOTIFICATIONS
+     ======================================================================== */
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -1040,3 +1075,5 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+// Expose App to global window scope so HTML onclick handlers can find it
+window.App = App;
