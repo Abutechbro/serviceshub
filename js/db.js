@@ -1,17 +1,18 @@
 /**
  * ============================================================================
- * SERVEHUB PRO - SCALABLE FIREBASE FIRESTORE ENGINE (js/db.js)
- * Architecture:
+ * SERVEHUB PRO - SCALABLE FIREBASE FIRESTORE & EMAIL ENGINE (js/db.js)
+ * Features:
  * - Multi-Collection Firestore Storage ('professionals', 'bookings', 'platform/meta')
- * - Bypasses 1MB single-file limits so thousands of pros & bookings can scale
- * - Real-time WebSockets (onSnapshot) sync Phone A, Phone B & Admin instantly
+ * - Real-time WebSockets (onSnapshot) across all devices
+ * - Persistent localStorage Admin & Pro sessions (prevents login loops)
+ * - FormSubmit AJAX Email Dispatcher (sendEmailAlert)
+ * - Global window.ServeHubDB binding (works with or without type="module")
  * ============================================================================
  */
 
 /* ==========================================================================
    1. PASTE YOUR FIREBASE CONFIGURATION HERE BEFORE PUSHING TO GITHUB
    ========================================================================== */
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyD6tIyylJqIZ5_SPkBojelARLqRL-q6tyQ",
   authDomain: "servehub-d8739.firebaseapp.com",
@@ -57,6 +58,7 @@ const INITIAL_SEED_STATE = {
       category: 'Electrician',
       location: 'Ikeja, Lagos',
       phone: '2348031234567',
+      email: 'idrisabubakry@gmail.com',
       verified: true,
       available: true,
       yearsExp: 9,
@@ -86,6 +88,7 @@ const INITIAL_SEED_STATE = {
       category: 'Solar & Inverter',
       location: 'Wuse II, Abuja',
       phone: '2348098765432',
+      email: 'idrisabubakry@gmail.com',
       verified: true,
       available: true,
       yearsExp: 7,
@@ -111,6 +114,7 @@ const INITIAL_SEED_STATE = {
       category: 'Plumber',
       location: 'Lekki, Lagos',
       phone: '2348023334444',
+      email: 'idrisabubakry@gmail.com',
       verified: true,
       available: true,
       yearsExp: 11,
@@ -136,6 +140,7 @@ const INITIAL_SEED_STATE = {
       category: 'AC & Cooling',
       location: 'Yaba, Lagos',
       phone: '2348055556666',
+      email: 'idrisabubakry@gmail.com',
       verified: true,
       available: true,
       yearsExp: 6,
@@ -159,9 +164,11 @@ const INITIAL_SEED_STATE = {
       proId: 'PRO-101',
       proName: 'Engr. Tunde Bakare (Apex Spark Electricals)',
       proPhone: '2348031234567',
+      proEmail: 'idrisabubakry@gmail.com',
       proCategory: 'Electrician',
       customerName: 'David Adeleke',
       customerPhone: '2348030001111',
+      customerEmail: 'idrisabubakry@gmail.com',
       customerAddress: '14 Admiralty Way, Lekki Phase 1, Lagos',
       serviceTitle: 'Distribution Board / Breaker Upgrade',
       amount: 35000,
@@ -182,7 +189,6 @@ const INITIAL_SEED_STATE = {
 let memoryState = null;
 let firestoreDb = null;
 let fsModules = null;
-let isFirebaseConnected = false;
 let uiUpdateCallback = null;
 
 // Snapshots of cloud records for surgical diffing (only writes changed docs)
@@ -198,6 +204,7 @@ const ServeHubDB = {
    */
   isConfigured() {
     return Boolean(
+      FIREBASE_CONFIG &&
       FIREBASE_CONFIG.apiKey &&
       !FIREBASE_CONFIG.apiKey.includes('PASTE_YOUR') &&
       FIREBASE_CONFIG.projectId &&
@@ -240,7 +247,7 @@ const ServeHubDB = {
           await this.seedFirestore(INITIAL_SEED_STATE);
         }
 
-        // Attach real-time listener 1: Platform Settings & Categories
+        // Real-time listener 1: Platform Settings & Categories
         fsModules.onSnapshot(metaRef, (snap) => {
           if (snap.exists()) {
             const data = snap.data();
@@ -255,7 +262,7 @@ const ServeHubDB = {
           }
         });
 
-        // Attach real-time listener 2: Professionals Collection
+        // Real-time listener 2: Professionals Collection
         const prosCol = fsModules.collection(firestoreDb, 'professionals');
         fsModules.onSnapshot(prosCol, (snap) => {
           const list = [];
@@ -271,7 +278,7 @@ const ServeHubDB = {
           this.triggerUIRefresh();
         });
 
-        // Attach real-time listener 3: Bookings Collection
+        // Real-time listener 3: Bookings Collection
         const bookingsCol = fsModules.collection(firestoreDb, 'bookings');
         fsModules.onSnapshot(bookingsCol, (snap) => {
           const list = [];
@@ -285,8 +292,6 @@ const ServeHubDB = {
           memoryState.bookings = list;
           this.triggerUIRefresh();
         });
-
-        isFirebaseConnected = true;
       }
       return { ok: true, state: memoryState };
     } catch (err) {
@@ -344,7 +349,7 @@ const ServeHubDB = {
   },
 
   /**
-   * Synchronous State Getter (Used by App and AdminApp)
+   * Synchronous State Getter
    */
   getState() {
     if (memoryState) return memoryState;
@@ -352,6 +357,7 @@ const ServeHubDB = {
       const raw = localStorage.getItem(DB_STORAGE_KEY);
       if (raw) {
         memoryState = JSON.parse(raw);
+        if (!memoryState.settings) memoryState.settings = INITIAL_SEED_STATE.settings;
         return memoryState;
       }
     } catch {}
@@ -360,9 +366,7 @@ const ServeHubDB = {
   },
 
   /**
-   * Surgical Multi-Collection State Saver:
-   * Updates memory + LocalStorage immediately and writes ONLY changed/added/deleted
-   * documents to Firebase Firestore via writeBatch.
+   * Surgical Multi-Collection State Saver
    */
   async saveState(newState, syncCloud = true) {
     newState.categories.forEach(cat => {
@@ -474,8 +478,49 @@ const ServeHubDB = {
     return fresh;
   },
 
+ /**
+   * Dispatch real-time email notifications via EmailJS SDK
+   */
+  async sendEmailAlert(toEmail, subject, payloadData) {
+    if (!toEmail || !toEmail.includes('@')) {
+      return { ok: false, reason: 'Invalid recipient email' };
+    }
+
+    try {
+      // Ensure EmailJS SDK is loaded in the browser
+      if (typeof emailjs === 'undefined') {
+        console.warn('EmailJS SDK not loaded');
+        return { ok: false, reason: 'EmailJS SDK missing' };
+      }
+
+      const response = await emailjs.send(
+        'service_rsrcs1n',   // Replace with your EmailJS Service ID
+        'template_5i9td2v',  // Replace with your EmailJS Template ID
+        {
+          to_email: toEmail.trim(),
+          subject: subject,
+          booking_id: payloadData.Booking_Reference || payloadData.Booking_ID || 'N/A',
+          service_title: payloadData.Service_Requested || payloadData.Service_Booked || payloadData.Service || 'N/A',
+          client_name: payloadData.Client_Name || 'N/A',
+          client_phone: payloadData.Client_Phone || payloadData.Professional_Phone || 'N/A',
+          client_email: payloadData.Client_Email || toEmail,
+          service_address: payloadData.Service_Address || 'N/A',
+          preferred_schedule: payloadData.Preferred_Schedule || payloadData.Scheduled_Visit || payloadData.Schedule || 'N/A',
+          amount: payloadData.Estimated_Amount || payloadData.Estimated_Total || payloadData.Total_Estimate || 'N/A',
+          status_or_notes: payloadData.Job_Notes || payloadData.New_Job_Status || payloadData.Updated_Status || 'Confirmed'
+        }
+      );
+
+      return { ok: response.status === 200 };
+    } catch (err) {
+      console.warn('EmailJS Dispatch Error:', err);
+      return { ok: false, reason: err.text || err.message };
+    }
+  },
+
   /* ========================================================================
-     AUTHENTICATION & UTILITIES
+     5. AUTHENTICATION & PERSISTENT SESSIONS
+     Uses localStorage so sessions never drop or loop on page reloads
      ======================================================================== */
   authenticatePro(username, password) {
     const state = this.getState();
@@ -487,46 +532,48 @@ const ServeHubDB = {
     );
 
     if (pro) {
-      sessionStorage.setItem(PRO_SESSION_KEY, pro.id);
+      localStorage.setItem(PRO_SESSION_KEY, pro.id);
       return { ok: true, pro };
     }
     return { ok: false, error: 'Invalid username or password.' };
   },
 
   getActivePro() {
-    const proId = sessionStorage.getItem(PRO_SESSION_KEY);
+    const proId = localStorage.getItem(PRO_SESSION_KEY);
     if (!proId) return null;
     const state = this.getState();
     return state.professionals.find(p => p.id === proId) || null;
   },
 
   logoutPro() {
-    sessionStorage.removeItem(PRO_SESSION_KEY);
+    localStorage.removeItem(PRO_SESSION_KEY);
   },
 
- authenticateAdmin(username, password) {
+  authenticateAdmin(username, password) {
     const state = this.getState();
     const settings = state.settings || { adminUsername: 'admin', adminPassword: 'admin123' };
-    
+
     if (
       (username || '').trim().toLowerCase() === (settings.adminUsername || 'admin').toLowerCase() &&
       (password || '').trim() === (settings.adminPassword || 'admin123')
     ) {
-      // Use localStorage instead of sessionStorage so it persists reliably
-      localStorage.setItem('SERVEHUB_ADMIN_ACTIVE_SESSION', 'ACTIVE');
+      localStorage.setItem(ADMIN_SESSION_KEY, 'ACTIVE');
       return true;
     }
     return false;
   },
 
   isAdminLoggedIn() {
-    return localStorage.setItem ? localStorage.getItem('SERVEHUB_ADMIN_ACTIVE_SESSION') === 'ACTIVE' : false;
+    return localStorage.getItem(ADMIN_SESSION_KEY) === 'ACTIVE';
   },
 
   logoutAdmin() {
-    localStorage.removeItem('SERVEHUB_ADMIN_ACTIVE_SESSION');
+    localStorage.removeItem(ADMIN_SESSION_KEY);
   },
 
+  /* ========================================================================
+     6. SHARED UTILITIES & IMAGE COMPRESSION
+     ======================================================================== */
   escapeHTML(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -570,5 +617,6 @@ const ServeHubDB = {
     });
   }
 };
-// Expose database engine globally for module-to-module communication
+
+// Expose ServeHubDB globally so App and AdminApp always have access
 window.ServeHubDB = ServeHubDB;

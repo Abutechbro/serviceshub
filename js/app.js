@@ -3,8 +3,9 @@
  * SERVEHUB PRO - FRONTEND & POPUP AUTH CONTROLLER (js/app.js)
  * Features:
  * - Real-time Firebase Firestore synchronization via ServeHubDB.initRealtimeSync()
+ * - Automated Email Alerts (FormSubmit AJAX) for New Bookings & Job Progress
  * - Popup Modal for Pro Login & Registration
- * - Strict role-based navigation isolation when logged in as a Professional
+ * - Strict role-based navigation isolation + global window.App binding
  * ============================================================================
  */
 
@@ -17,18 +18,17 @@ const App = {
      1. INITIALIZATION & REAL-TIME FIREBASE SYNC
      ======================================================================== */
   async init() {
-    // Initial render from local cache for instant page paint
     this.renderAll();
 
-    // Listen for cross-tab storage updates
     window.addEventListener('storage', () => {
       this.renderAll();
     });
 
-    // Subscribe to live Firebase Firestore updates across all devices
-    await ServeHubDB.initRealtimeSync(() => {
-      this.renderAll();
-    });
+    if (typeof ServeHubDB !== 'undefined' && ServeHubDB.initRealtimeSync) {
+      await ServeHubDB.initRealtimeSync(() => {
+        this.renderAll();
+      });
+    }
   },
 
   renderAll() {
@@ -40,7 +40,40 @@ const App = {
   },
 
   /* ========================================================================
-     2. POPUP AUTH MODAL CONTROLS (LOGIN & REGISTER)
+     2. ZERO-BACKEND EMAIL DISPATCHER (FALLBACK-SAFE)
+     Uses ServeHubDB.sendEmailAlert if present, or dispatches directly via AJAX
+     ======================================================================== */
+  async dispatchEmailNotification(toEmail, subject, payloadData) {
+    if (!toEmail || !toEmail.includes('@')) return { ok: false };
+
+    if (typeof ServeHubDB !== 'undefined' && typeof ServeHubDB.sendEmailAlert === 'function') {
+      return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
+    }
+
+    try {
+      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: subject,
+          _template: 'table',
+          _captcha: 'false',
+          Platform: 'ServeHub Pro Marketplace',
+          ...payloadData
+        })
+      });
+      return { ok: response.ok };
+    } catch (err) {
+      console.warn('Email Dispatch Warning:', err);
+      return { ok: false };
+    }
+  },
+
+  /* ========================================================================
+     3. POPUP AUTH MODAL CONTROLS (LOGIN & REGISTER)
      ======================================================================== */
   openAuthModal(mode = 'login') {
     const modal = document.getElementById('auth-modal');
@@ -70,7 +103,7 @@ const App = {
   },
 
   /* ========================================================================
-     3. ROLE-BASED NAVIGATION ISOLATION (GUEST vs LOGGED-IN PRO)
+     4. ROLE-BASED NAVIGATION ISOLATION (GUEST vs LOGGED-IN PRO)
      ======================================================================== */
   syncRoleNavigationUI() {
     const activePro = ServeHubDB.getActivePro();
@@ -212,7 +245,7 @@ const App = {
   },
 
   /* ========================================================================
-     4. MARKETPLACE & DIRECTORY RENDERING
+     5. MARKETPLACE & DIRECTORY RENDERING
      ======================================================================== */
   renderCategories() {
     const state = ServeHubDB.getState();
@@ -394,7 +427,7 @@ const App = {
   },
 
   /* ========================================================================
-     5. SHOWROOM MODAL, REVIEWS & BOOKING CREATION
+     6. SHOWROOM MODAL, REVIEWS & BOOKING CREATION (WITH EMAIL INPUT)
      ======================================================================== */
   openShowroom(proId) {
     const state = ServeHubDB.getState();
@@ -482,7 +515,7 @@ const App = {
             <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <i class="fa-solid fa-calendar-plus text-blue-600"></i> Book This Professional
             </h3>
-            <p class="text-xs text-slate-500 mt-0.5">Select a service below for an instant estimate and booking reference.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Select a service below for an instant estimate and live email confirmation.</p>
 
             <form onsubmit="App.submitBooking(event, '${pro.id}')" class="mt-4 space-y-3">
               <div>
@@ -528,9 +561,15 @@ const App = {
                 <input id="book-client-name" type="text" required placeholder="e.g. Chidi Nwosu" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white" />
               </div>
 
-              <div>
-                <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Your Phone / WhatsApp *</label>
-                <input id="book-client-phone" type="tel" required placeholder="e.g. 08031234567" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white" />
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Phone / WhatsApp *</label>
+                  <input id="book-client-phone" type="tel" required placeholder="e.g. 08031234567" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Your Email (Updates) *</label>
+                  <input id="book-client-email" type="email" required placeholder="client@email.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white" />
+                </div>
               </div>
 
               <div>
@@ -549,7 +588,7 @@ const App = {
               </div>
 
               <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg">
-                Confirm & Generate Booking ID
+                Confirm & Send Booking Alerts
               </button>
             </form>
           </div>
@@ -601,7 +640,7 @@ const App = {
   },
 
   /* ========================================================================
-     6. BOOKING SUBMISSION, RECEIPT & LIVE TRACKER
+     7. BOOKING SUBMISSION, DUAL EMAIL ALERTS & LIVE TRACKER
      ======================================================================== */
   async submitBooking(e, proId) {
     e.preventDefault();
@@ -619,9 +658,11 @@ const App = {
       proId: pro.id,
       proName: `${pro.name} (${pro.businessName})`,
       proPhone: pro.phone,
+      proEmail: pro.email || state.settings?.notifyEmail || 'idrisabubakry@gmail.com',
       proCategory: pro.category,
       customerName: document.getElementById('book-client-name').value.trim(),
       customerPhone: document.getElementById('book-client-phone').value.trim(),
+      customerEmail: document.getElementById('book-client-email').value.trim(),
       customerAddress: document.getElementById('book-client-address').value.trim(),
       serviceTitle: srvSelect.value,
       amount: basePrice + surcharge,
@@ -639,7 +680,41 @@ const App = {
 
     this.closeShowroom();
     this.showBookingReceipt(newBooking);
-    this.notify(`Booking ${newBooking.id} confirmed!`);
+    this.notify(`Booking ${newBooking.id} confirmed! Sending email alerts...`);
+
+    // 1. Dispatch New Booking Alert Email to the Professional
+    this.dispatchEmailNotification(
+      newBooking.proEmail,
+      `🚨 New Booking Request [${newBooking.id}] - ${newBooking.serviceTitle}`,
+      {
+        Booking_Reference: newBooking.id,
+        Service_Requested: newBooking.serviceTitle,
+        Estimated_Amount: ServeHubDB.formatCurrency(newBooking.amount),
+        Urgency: newBooking.urgency,
+        Preferred_Schedule: `${newBooking.preferredDate} at ${newBooking.preferredTime}`,
+        Client_Name: newBooking.customerName,
+        Client_Phone: newBooking.customerPhone,
+        Client_Email: newBooking.customerEmail,
+        Service_Address: newBooking.customerAddress,
+        Job_Notes: newBooking.notes
+      }
+    );
+
+    // 2. Dispatch Instant Confirmation Email to the Customer
+    this.dispatchEmailNotification(
+      newBooking.customerEmail,
+      `✅ Booking Confirmed [${newBooking.id}] - ${pro.businessName}`,
+      {
+        Booking_Reference: newBooking.id,
+        Current_Status: 'Pending Professional Confirmation',
+        Assigned_Professional: newBooking.proName,
+        Professional_Phone: newBooking.proPhone,
+        Service_Booked: newBooking.serviceTitle,
+        Estimated_Total: ServeHubDB.formatCurrency(newBooking.amount),
+        Scheduled_Visit: `${newBooking.preferredDate} at ${newBooking.preferredTime}`,
+        Service_Address: newBooking.customerAddress
+      }
+    );
   },
 
   showBookingReceipt(b) {
@@ -668,7 +743,7 @@ const App = {
         </div>
         <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-extrabold">Booking Ref: ${b.id}</span>
         <h3 class="text-xl font-extrabold text-slate-900 mt-2">Booking Request Logged!</h3>
-        <p class="text-xs text-slate-500 mt-1">Save your reference ID to track your job progress in real time.</p>
+        <p class="text-xs text-slate-500 mt-1">Email confirmation sent to <strong>${ServeHubDB.escapeHTML(b.customerEmail || 'your inbox')}</strong>.</p>
       </div>
 
       <div class="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
@@ -713,14 +788,17 @@ const App = {
 
     const state = ServeHubDB.getState();
     const matches = state.bookings.filter(
-      b => b.id.toLowerCase() === query || b.customerPhone.toLowerCase().includes(query)
+      b =>
+        b.id.toLowerCase() === query ||
+        (b.customerPhone || '').toLowerCase().includes(query) ||
+        (b.customerEmail || '').toLowerCase() === query
     );
 
     if (matches.length === 0) {
       box.innerHTML = `
         <div class="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-center">
           <p class="text-sm font-bold text-rose-700">No Booking Found for "${ServeHubDB.escapeHTML(query)}"</p>
-          <p class="text-xs text-rose-500 mt-1">Check your Reference ID (e.g., SHB-8492) or phone number and try again.</p>
+          <p class="text-xs text-rose-500 mt-1">Check your Reference ID (e.g., SHB-8492), phone number, or email and try again.</p>
         </div>
       `;
       return;
@@ -760,7 +838,7 @@ const App = {
   },
 
   /* ========================================================================
-     7. PRO AUTHENTICATION & ISOLATED WORKSPACE MANAGEMENT
+     8. PRO AUTHENTICATION, EMAIL REGISTRATION & WORKSPACE MANAGEMENT
      ======================================================================== */
   populateCategorySelect() {
     const select = document.getElementById('reg-category');
@@ -860,6 +938,7 @@ const App = {
       category: document.getElementById('reg-category').value,
       location: document.getElementById('reg-location').value.trim(),
       phone: document.getElementById('reg-phone').value.trim(),
+      email: document.getElementById('reg-email').value.trim(),
       verified: false,
       available: true,
       yearsExp: Number(document.getElementById('reg-exp').value || 3),
@@ -936,7 +1015,7 @@ const App = {
               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">${ServeHubDB.escapeHTML(b.status)}</span>
             </div>
             <h4 class="font-extrabold text-slate-900 text-sm mt-1">${ServeHubDB.escapeHTML(b.serviceTitle)} — ${ServeHubDB.formatCurrency(b.amount)}</h4>
-            <p class="text-xs text-slate-600 mt-0.5">Client: <strong>${ServeHubDB.escapeHTML(b.customerName)}</strong> (${ServeHubDB.escapeHTML(b.customerPhone)})</p>
+            <p class="text-xs text-slate-600 mt-0.5">Client: <strong>${ServeHubDB.escapeHTML(b.customerName)}</strong> (${ServeHubDB.escapeHTML(b.customerPhone)}${b.customerEmail ? ' • ' + ServeHubDB.escapeHTML(b.customerEmail) : ''})</p>
             <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot mr-1"></i>${ServeHubDB.escapeHTML(b.customerAddress)} &bull; ${ServeHubDB.escapeHTML(b.preferredDate)}</p>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -945,7 +1024,7 @@ const App = {
                 <option value="${st}" ${b.status === st ? 'selected' : ''}>${st}</option>
               `).join('')}
             </select>
-            <a href="https://wa.me/${b.customerPhone.replace(/\D/g, '')}" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+            <a href="https://wa.me/${(b.customerPhone || '').replace(/\D/g, '')}" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
               <i class="fa-brands fa-whatsapp"></i> Chat Client
             </a>
           </div>
@@ -964,12 +1043,13 @@ const App = {
       </div>
     `).join('');
 
-    // Only overwrite form inputs if user is not actively typing in them
     if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
       document.getElementById('edit-pro-business').value = activePro.businessName || '';
       document.getElementById('edit-pro-name').value = activePro.name || '';
       document.getElementById('edit-pro-location').value = activePro.location || '';
       document.getElementById('edit-pro-phone').value = activePro.phone || '';
+      const emailField = document.getElementById('edit-pro-email');
+      if (emailField) emailField.value = activePro.email || '';
       document.getElementById('edit-pro-rate').value = activePro.baseRate || 10000;
       document.getElementById('edit-pro-bio').value = activePro.bio || '';
       document.getElementById('edit-pro-password').value = '';
@@ -989,6 +1069,8 @@ const App = {
     pro.name = document.getElementById('edit-pro-name').value.trim();
     pro.location = document.getElementById('edit-pro-location').value.trim();
     pro.phone = document.getElementById('edit-pro-phone').value.trim();
+    const emailInput = document.getElementById('edit-pro-email');
+    if (emailInput) pro.email = emailInput.value.trim();
     pro.baseRate = Number(document.getElementById('edit-pro-rate').value || 10000);
     pro.bio = document.getElementById('edit-pro-bio').value.trim();
 
@@ -1018,11 +1100,27 @@ const App = {
   async updateBookingStatusByPro(bookingId, newStatus) {
     const state = ServeHubDB.getState();
     const booking = state.bookings.find(b => b.id === bookingId);
-    if (booking) {
-      booking.status = newStatus;
-      await ServeHubDB.saveState(state);
-      this.renderProPortalState();
-      this.notify(`Booking ${bookingId} marked as ${newStatus}`);
+    if (!booking) return;
+
+    booking.status = newStatus;
+    await ServeHubDB.saveState(state);
+    this.renderProPortalState();
+    this.notify(`Booking ${bookingId} marked as ${newStatus}. Notifying client...`);
+
+    if (booking.customerEmail) {
+      await this.dispatchEmailNotification(
+        booking.customerEmail,
+        `🔔 Job Status Update [${booking.id}]: ${newStatus}`,
+        {
+          Booking_Reference: booking.id,
+          New_Job_Status: newStatus,
+          Professional: booking.proName,
+          Professional_Contact: booking.proPhone,
+          Service: booking.serviceTitle,
+          Scheduled_Date: `${booking.preferredDate} (${booking.preferredTime})`,
+          Estimated_Amount: ServeHubDB.formatCurrency(booking.amount)
+        }
+      );
     }
   },
 
@@ -1060,7 +1158,7 @@ const App = {
   },
 
   /* ========================================================================
-     8. TOAST NOTIFICATIONS
+     9. TOAST NOTIFICATIONS
      ======================================================================== */
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -1074,6 +1172,7 @@ const App = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => App.init());
-// Expose App to global window scope so HTML onclick handlers can find it
+// Expose App globally so inline onclick="App.*" attributes always work
 window.App = App;
+
+document.addEventListener('DOMContentLoaded', () => App.init());

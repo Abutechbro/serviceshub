@@ -10,26 +10,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="css/style.css" />
-  <!-- Small-screen layout adjustments only; existing styling remains unchanged. -->
-  <style>
-    html, body { max-width: 100%; }
-    img, video, iframe { max-width: 100%; }
-    #view-marketplace, #view-tracker, #view-pro-portal { min-width: 0; }
-    #auth-modal input, #auth-modal select, #auth-modal textarea,
-    #view-pro-portal input, #view-pro-portal textarea { min-width: 0; max-width: 100%; }
-    @media (max-width: 639px) {
-      #public-announcement-bar > div { height: auto; min-height: 2.25rem; padding-top: .4rem; padding-bottom: .4rem; }
-      #public-announcement-bar span { white-space: normal; line-height: 1.3; }
-      #public-header-actions button { white-space: nowrap; }
-      #pro-header-actions { gap: .375rem; }
-      #header-availability-btn { max-width: 9rem; font-size: .65rem; padding-left: .5rem; padding-right: .5rem; }
-      #auth-modal, #showroom-modal, #receipt-modal { align-items: flex-start; }
-      #auth-modal > div, #showroom-modal > div, #receipt-modal > div { margin-top: auto; margin-bottom: auto; }
-      #toast-container { left: 1rem; right: 1rem; bottom: 1rem; }
-      #toast-container > div { max-width: 100%; overflow-wrap: anywhere; }
-      #view-pro-portal .grid > *, #auth-modal .grid > * { min-width: 0; }
-    }
-  </style>
+
+  <!-- EmailJS SDK -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script type="text/javascript">
+  (function() {
+    emailjs.init({
+      publicKey: "uLPpcwCsA9zbz3qc6", // Replace with your actual EmailJS Public Key
+    });
+  })();
+</script>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-blue-600 selection:text-white">
 
@@ -38,7 +28,7 @@
        ======================================================================== -->
   <div id="public-announcement-bar" class="bg-slate-950 text-slate-300 text-[11px] font-semibold border-b border-slate-800/80 no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between">
-      <div class="flex items-center gap-2 min-w-0">
+      <div class="flex items-center gap-4">
         <span class="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
           <i class="fa-solid fa-shield-check"></i> 100% Vetted & ID-Verified Professionals
         </span>
@@ -46,7 +36,7 @@
           <i class="fa-solid fa-bolt text-amber-400"></i> Same-Day Emergency Dispatch Available
         </span>
       </div>
-      <div class="hidden sm:flex items-center gap-4">
+      <div class="flex items-center gap-4">
         <a href="#tracker" onclick="App.switchTab('tracker'); return false;" class="hover:text-white transition">
           <i class="fa-solid fa-location-crosshairs text-blue-400 mr-1"></i>Track Existing Job
         </a>
@@ -62,10 +52,10 @@
        1. STATE-AWARE TOP NAVIGATION BAR
        ======================================================================== -->
   <header class="sticky top-0 z-40 glass-header border-b border-slate-200/80 shadow-sm no-print">
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 min-w-0">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 
       <!-- Brand Identity -->
-      <div onclick="App.handleLogoClick()" class="flex items-center gap-2 sm:gap-3 group cursor-pointer min-w-0 shrink-0">
+      <div onclick="App.handleLogoClick()" class="flex items-center gap-3 group cursor-pointer">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-blue-600/20 group-hover:scale-105 transition">
           <i class="fa-solid fa-screwdriver-wrench text-lg"></i>
         </div>
@@ -86,8 +76,8 @@
       </nav>
 
       <!-- 1B. PUBLIC GUEST CTA BUTTONS (TRIGGERS POPUP) -->
-      <div id="public-header-actions" class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        <!-- <button onclick="App.openAuthModal('login')" class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-extrabold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
+      <div id="public-header-actions" class="flex items-center gap-2.5">
+        <!-- <button onclick="App.openAuthModal('login')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
           <i class="fa-solid fa-right-to-bracket"></i> Pro Login
         </button> -->
         <button onclick="App.openAuthModal('register')" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm">
@@ -177,24 +167,24 @@
 
           <!-- Search & Location Filter Bar -->
           <div class="mt-8 bg-white p-2.5 rounded-2xl shadow-2xl shadow-blue-950/50 max-w-2xl mx-auto flex flex-col sm:flex-row gap-2 border border-white/20">
-            <div class="flex-1 min-w-0 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
+            <div class="flex-1 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
               <i class="fa-solid fa-magnifying-glass text-blue-600 mr-3"></i>
               <input
                 id="search-keyword"
                 type="text"
                 oninput="App.renderMarketplace()"
                 placeholder="What do you need fixed? (e.g. Electrician, Solar, AC)..."
-                class="w-full min-w-0 bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
+                class="w-full bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
               />
             </div>
-            <div class="sm:w-48 min-w-0 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
+            <div class="sm:w-48 flex items-center px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/80 focus-within:border-blue-500 focus-within:bg-white transition">
               <i class="fa-solid fa-location-dot text-rose-500 mr-2.5"></i>
               <input
                 id="search-location"
                 type="text"
                 oninput="App.renderMarketplace()"
                 placeholder="City or Area..."
-                class="w-full min-w-0 bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
+                class="w-full bg-transparent text-slate-900 text-sm font-semibold focus:outline-none"
               />
             </div>
             <button onclick="App.resetFilters()" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm transition shrink-0 shadow-md shadow-blue-600/25">
@@ -233,11 +223,11 @@
             </div>
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                <i class="fa-brands fa-whatsapp text-lg"></i>
+                <i class="fa-solid fa-envelope-circle-check text-lg"></i>
               </div>
               <div>
-                <p class="text-sm font-extrabold text-white">Instant Alert</p>
-                <p class="text-[11px] text-slate-400">Direct WhatsApp Sync</p>
+                <p class="text-sm font-extrabold text-white">Email & WA Alerts</p>
+                <p class="text-[11px] text-slate-400">Live Status Sync</p>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -311,17 +301,17 @@
               <i class="fa-solid fa-calendar-check"></i>
             </div>
             <span class="absolute top-6 right-6 text-3xl font-black text-slate-200">02</span>
-            <h3 class="text-base font-extrabold text-slate-900">Book & Get Instant Estimate</h3>
-            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Select the exact service you need, pick your preferred date and time, and receive an instant Booking Reference ID with zero hidden fees.</p>
+            <h3 class="text-base font-extrabold text-slate-900">Book & Receive Instant Alerts</h3>
+            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Select the exact service you need, pick your date and time, and both you and the professional receive instant email and WhatsApp notifications.</p>
           </div>
 
           <div class="relative p-6 rounded-3xl bg-slate-50 border border-slate-200/80">
             <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-lg shadow-lg shadow-emerald-600/25 mb-4">
-              <i class="fa-brands fa-whatsapp text-xl"></i>
+              <i class="fa-solid fa-bell text-xl"></i>
             </div>
             <span class="absolute top-6 right-6 text-3xl font-black text-slate-200">03</span>
-            <h3 class="text-base font-extrabold text-slate-900">Track Live & Chat Directly</h3>
-            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Send your booking ticket directly to the pro's WhatsApp in one click and track job progress from Pending to Completed.</p>
+            <h3 class="text-base font-extrabold text-slate-900">Live Job Progress Updates</h3>
+            <p class="text-xs text-slate-600 mt-2 leading-relaxed">Receive automatic email alerts whenever your booked professional updates your job from Pending to Confirmed, In Progress, and Completed.</p>
           </div>
         </div>
       </div>
@@ -339,7 +329,7 @@
         </div>
         <div>
           <h2 class="text-xl font-extrabold text-slate-900">Track Your Service Booking</h2>
-          <p class="text-xs text-slate-500">Enter your Booking Reference ID (e.g., <code class="font-bold text-blue-600">SHB-8492</code>) or Phone Number</p>
+          <p class="text-xs text-slate-500">Enter your Booking Reference ID (e.g., <code class="font-bold text-blue-600">SHB-8492</code>), Phone Number, or Email</p>
         </div>
       </div>
 
@@ -347,8 +337,8 @@
         <input
           id="tracker-query"
           type="text"
-          placeholder="Enter Reference ID (e.g. SHB-8492) or Phone Number..."
-          class="flex-1 min-w-0 w-full sm:w-auto px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+          placeholder="Enter Reference ID (e.g. SHB-8492), Phone, or Email..."
+          class="flex-1 px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
         />
         <button onclick="App.trackBooking()" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition">
           Track Status
@@ -367,7 +357,7 @@
 
       <!-- Pro Workspace Identity Banner -->
       <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div class="flex items-center gap-4 min-w-0">
+        <div class="flex items-center gap-4">
           <img id="dash-pro-avatar" src="" alt="Pro Avatar" class="w-16 h-16 rounded-2xl object-cover border-2 border-blue-400" />
           <div>
             <div class="flex flex-wrap items-center gap-2">
@@ -412,7 +402,7 @@
             <h3 class="text-lg font-extrabold text-slate-900">
               <i class="fa-solid fa-calendar-check text-blue-600 mr-2"></i>Client Bookings & Job Pipeline
             </h3>
-            <p class="text-xs text-slate-500">Accept new bookings, update live job stages, or chat directly with your clients on WhatsApp.</p>
+            <p class="text-xs text-slate-500">Updating a booking status automatically sends a live progress email alert to the customer.</p>
           </div>
         </div>
         <div id="dash-pro-bookings-list" class="space-y-4"></div>
@@ -445,9 +435,9 @@
       <div id="pro-tab-profile" class="hidden bg-white rounded-3xl border border-slate-200 p-6 animate-fade-in">
         <div class="max-w-2xl">
           <h3 class="text-lg font-extrabold text-slate-900 mb-1">
-            <i class="fa-solid fa-id-card text-blue-600 mr-2"></i>Business Settings & Showroom Bio
+            <i class="fa-solid fa-id-card text-blue-600 mr-2"></i>Business Settings & Notification Email
           </h3>
-          <p class="text-xs text-slate-500 mb-5">Update your business name, location, call-out rate, WhatsApp contact, or account password.</p>
+          <p class="text-xs text-slate-500 mb-5">Update your business name, location, call-out rate, booking notification email, or account password.</p>
 
           <form onsubmit="App.saveProProfileSettings(event)" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -468,10 +458,14 @@
                 <input id="edit-pro-phone" type="tel" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
               </div>
               <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Notification Email (For Booking Alerts)</label>
+                <input id="edit-pro-email" type="email" required placeholder="e.g. business@email.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Starting Call-Out Rate (₦)</label>
                 <input id="edit-pro-rate" type="number" required min="500" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
               </div>
-              <div>
+              <div class="sm:col-span-2">
                 <label class="block text-xs font-bold text-slate-700 mb-1">New Password (leave blank to keep current)</label>
                 <input id="edit-pro-password" type="password" placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
               </div>
@@ -600,7 +594,7 @@
             </div>
           </div>
 
-          <!-- Step 2: Business Details -->
+          <!-- Step 2: Business Details (With Business Email Field) -->
           <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
             <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600">
               <i class="fa-solid fa-id-card mr-1"></i> Step 2: Business & Contact Details
@@ -627,6 +621,10 @@
                 <input id="reg-phone" type="tel" required placeholder="e.g. 2348031234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
               <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Business Email (For Booking Alerts) *</label>
+                <input id="reg-email" type="email" required placeholder="e.g. contact@primevolt.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
+              </div>
+              <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Starting Call-Out Rate (₦) *</label>
                 <input id="reg-rate" type="number" required min="1000" step="500" placeholder="e.g. 10000" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
@@ -634,8 +632,8 @@
                 <label class="block text-xs font-bold text-slate-700 mb-1">Years of Experience *</label>
                 <input id="reg-exp" type="number" required min="1" max="50" value="5" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Profile Photo</label>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 mb-1">Profile Photo (Auto-Compressed)</label>
                 <input id="reg-avatar" type="file" accept="image/*" class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700" />
               </div>
             </div>
@@ -657,9 +655,9 @@
               </button>
             </div>
             <div id="reg-services-list" class="space-y-2.5">
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 reg-service-item">
-                <input type="text" required placeholder="Service title (e.g. Full Diagnostic)" class="sm:col-span-8 min-w-0 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-title" />
-                <input type="number" required placeholder="Price (₦)" class="sm:col-span-4 min-w-0 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-price" />
+              <div class="grid grid-cols-12 gap-2 reg-service-item">
+                <input type="text" required placeholder="Service title (e.g. Full Diagnostic)" class="col-span-8 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-title" />
+                <input type="number" required placeholder="Price (₦)" class="col-span-4 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium bg-white reg-srv-price" />
               </div>
             </div>
           </div>
@@ -715,7 +713,7 @@
             Are You a Certified Service Professional?
           </h3>
           <p class="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
-            Launch your digital showroom on ServeHub Pro in 2 minutes. Showcase your rates, receive instant WhatsApp booking tickets, and build verified client trust.
+            Launch your digital showroom on ServeHub Pro in 2 minutes. Showcase your rates, receive instant email and WhatsApp booking tickets, and build verified client trust.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3 shrink-0">
@@ -803,9 +801,7 @@
   </footer>
 
   <!-- Scripts -->
-  <!-- Update your script declaration in index.html & admin.html -->
-   <!-- <script src="js/firebase-config.js"></script> -->
-    <script type="module" src="js/db.js"></script>
-    <script type="module" src="js/app.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

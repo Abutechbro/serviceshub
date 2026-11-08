@@ -3,8 +3,9 @@
  * SERVEHUB PRO - ISOLATED ADMIN WORKSPACE CONTROLLER (js/admin.js)
  * Features:
  * - Real-time Firebase Firestore synchronization via ServeHubDB.initRealtimeSync()
- * - Multi-tab Admin Control Center (Bookings, Verify Pros, Categories, Cloud/Security)
- * - Instant cross-device updates across all phones & browsers
+ * - Automated Email Alerts (FormSubmit AJAX) on Booking Status & Pro Verification
+ * - Login Loop Fix (Direct DOM state transition + persistent localStorage session)
+ * - Global window.AdminApp binding for HTML inline event handlers
  * ============================================================================
  */
 
@@ -21,18 +22,20 @@ const AdminApp = {
       if (ServeHubDB.isAdminLoggedIn()) this.renderDashboard();
     });
 
-    // Subscribe to live Firebase Firestore updates in the Admin Portal
-    await ServeHubDB.initRealtimeSync(() => {
-      if (ServeHubDB.isAdminLoggedIn()) {
-        this.renderDashboard();
-      }
-    });
+    if (typeof ServeHubDB !== 'undefined' && ServeHubDB.initRealtimeSync) {
+      await ServeHubDB.initRealtimeSync(() => {
+        if (ServeHubDB.isAdminLoggedIn()) {
+          this.renderDashboard();
+        }
+      });
+    }
   },
 
+  /* ========================================================================
+     2. AUTHENTICATION & LOGIN LOOP FIX
+     ======================================================================== */
   checkAuth() {
     const loggedIn = ServeHubDB.isAdminLoggedIn();
-    
-    // Toggle visibility based on session state
     const loginScreen = document.getElementById('admin-login-screen');
     const dashboardScreen = document.getElementById('admin-dashboard-screen');
 
@@ -43,6 +46,33 @@ const AdminApp = {
       this.renderDashboard();
       this.switchAdminTab(this.activeTab);
     }
+  },
+
+  async handleLogin(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const user = (document.getElementById('admin-user')?.value || '').trim();
+    const pass = (document.getElementById('admin-pass')?.value || '').trim();
+
+    if (ServeHubDB.authenticateAdmin(user, pass)) {
+      // Force-persist session flag and immediately transition DOM to prevent login loops
+      localStorage.setItem('SERVEHUB_ADMIN_ACTIVE_SESSION', 'ACTIVE');
+      document.getElementById('admin-login-screen')?.classList.add('hidden');
+      document.getElementById('admin-dashboard-screen')?.classList.remove('hidden');
+
+      this.renderDashboard();
+      this.switchAdminTab(this.activeTab);
+      this.notify('Admin workspace unlocked.');
+    } else {
+      this.notify('Invalid admin username or password.', 'error');
+    }
+  },
+
+  handleLogout() {
+    ServeHubDB.logoutAdmin();
+    localStorage.removeItem('SERVEHUB_ADMIN_ACTIVE_SESSION');
+    this.checkAuth();
+    this.notify('Logged out of Admin Control Center.');
   },
 
   switchAdminTab(tabId) {
@@ -62,47 +92,59 @@ const AdminApp = {
     });
   },
 
-  async handleLogin(e) {
-    e.preventDefault();
-    const user = document.getElementById('admin-user').value;
-    const pass = document.getElementById('admin-pass').value;
+  /* ========================================================================
+     3. EMAIL NOTIFICATION DISPATCHER (FALLBACK-SAFE)
+     ======================================================================== */
+  async dispatchEmailNotification(toEmail, subject, payloadData) {
+    if (!toEmail || !toEmail.includes('@')) return { ok: false };
 
-    if (ServeHubDB.authenticateAdmin(user, pass)) {
-      this.notify('Admin workspace unlocked.');
-      
-      // Force-hide login screen and show dashboard container directly
-      document.getElementById('admin-login-screen')?.classList.add('hidden');
-      document.getElementById('admin-dashboard-screen')?.classList.remove('hidden');
-      
-      this.renderDashboard();
-      this.switchAdminTab(this.activeTab);
-    } else {
-      this.notify('Invalid admin username or password.', 'error');
+    if (typeof ServeHubDB !== 'undefined' && typeof ServeHubDB.sendEmailAlert === 'function') {
+      return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
+    }
+
+    try {
+      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: subject,
+          _template: 'table',
+          _captcha: 'false',
+          Platform: 'ServeHub Pro Admin Control Center',
+          ...payloadData
+        })
+      });
+      return { ok: response.ok };
+    } catch (err) {
+      console.warn('Admin Email Dispatch Warning:', err);
+      return { ok: false };
     }
   },
 
-  handleLogout() {
-    ServeHubDB.logoutAdmin();
-    this.checkAuth();
-    this.notify('Logged out of Admin Control Center.');
-  },
-
   /* ========================================================================
-     2. DASHBOARD RENDERING & REAL-TIME METRICS
+     4. DASHBOARD RENDERING & REAL-TIME METRICS
      ======================================================================== */
   renderDashboard() {
     const state = ServeHubDB.getState();
 
-    const gmv = state.bookings
+    const gmv = (state.bookings || [])
       .filter(b => b.status !== 'Cancelled')
       .reduce((acc, b) => acc + Number(b.amount || 0), 0);
 
-    document.getElementById('adm-kpi-bookings').textContent = state.bookings.length;
-    document.getElementById('adm-kpi-pros').textContent = state.professionals.length;
-    document.getElementById('adm-kpi-verified').textContent = state.professionals.filter(p => p.verified).length;
-    document.getElementById('adm-kpi-gmv').textContent = ServeHubDB.formatCurrency(gmv);
+    const kpiBookings = document.getElementById('adm-kpi-bookings');
+    const kpiPros = document.getElementById('adm-kpi-pros');
+    const kpiVerified = document.getElementById('adm-kpi-verified');
+    const kpiGmv = document.getElementById('adm-kpi-gmv');
 
-    // Update Cloud Status Badge for Firebase
+    if (kpiBookings) kpiBookings.textContent = (state.bookings || []).length;
+    if (kpiPros) kpiPros.textContent = (state.professionals || []).length;
+    if (kpiVerified) kpiVerified.textContent = (state.professionals || []).filter(p => p.verified).length;
+    if (kpiGmv) kpiGmv.textContent = ServeHubDB.formatCurrency(gmv);
+
+    // Update Cloud Status Badge
     const cloud = ServeHubDB.getCloudConfig();
     const badge = document.getElementById('cloud-status-badge');
     if (badge) {
@@ -117,12 +159,12 @@ const AdminApp = {
 
     const binInput = document.getElementById('cloud-bin-id');
     const keyInput = document.getElementById('cloud-api-key');
-    if (binInput && cloud.binId) binInput.value = cloud.binId;
-    if (keyInput && cloud.apiKey) keyInput.value = cloud.apiKey;
+    if (binInput && cloud.binId && document.activeElement !== binInput) binInput.value = cloud.binId;
+    if (keyInput && cloud.apiKey && document.activeElement !== keyInput) keyInput.value = cloud.apiKey;
 
     const secUser = document.getElementById('sec-admin-user');
     if (secUser && document.activeElement !== secUser) {
-      secUser.value = state.settings.adminUsername || 'admin';
+      secUser.value = state.settings?.adminUsername || 'admin';
     }
 
     this.renderBookingsTable(state);
@@ -131,13 +173,13 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     3. MASTER BOOKINGS PIPELINE
+     5. MASTER BOOKINGS PIPELINE & EMAIL ALERTS
      ======================================================================== */
   renderBookingsTable(state) {
     const tbody = document.getElementById('adm-bookings-tbody');
     if (!tbody) return;
 
-    if (state.bookings.length === 0) {
+    if (!state.bookings || state.bookings.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No bookings recorded yet.</td></tr>`;
       return;
     }
@@ -148,6 +190,7 @@ const AdminApp = {
         <td class="py-3 px-3">
           <div class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.customerName)}</div>
           <div class="text-slate-500">${ServeHubDB.escapeHTML(b.customerPhone)}</div>
+          ${b.customerEmail ? `<div class="text-[11px] text-blue-600">${ServeHubDB.escapeHTML(b.customerEmail)}</div>` : ''}
         </td>
         <td class="py-3 px-3 font-semibold text-slate-800">${ServeHubDB.escapeHTML(b.proName)}</td>
         <td class="py-3 px-3">
@@ -163,7 +206,7 @@ const AdminApp = {
           </select>
         </td>
         <td class="py-3 px-3 text-right">
-          <button onclick="AdminApp.deleteBooking('${b.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold">
+          <button onclick="AdminApp.deleteBooking('${b.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold" title="Delete Booking">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </td>
@@ -174,11 +217,28 @@ const AdminApp = {
   async updateBookingStatus(bookingId, status) {
     const state = ServeHubDB.getState();
     const b = state.bookings.find(item => item.id === bookingId);
-    if (b) {
-      b.status = status;
-      await ServeHubDB.saveState(state);
-      this.renderDashboard();
-      this.notify(`Booking ${bookingId} updated to ${status}`);
+    if (!b) return;
+
+    b.status = status;
+    await ServeHubDB.saveState(state);
+    this.renderDashboard();
+    this.notify(`Booking ${bookingId} updated to ${status}. Notifying client...`);
+
+    // Dispatch live job status email to customer
+    if (b.customerEmail) {
+      await this.dispatchEmailNotification(
+        b.customerEmail,
+        `🔔 Job Progress Update [${b.id}]: ${status}`,
+        {
+          Booking_Reference: b.id,
+          Updated_Status: status,
+          Assigned_Professional: b.proName,
+          Professional_Phone: b.proPhone || 'N/A',
+          Service_Booked: b.serviceTitle,
+          Scheduled_Visit: `${b.preferredDate} (${b.preferredTime})`,
+          Total_Estimate: ServeHubDB.formatCurrency(b.amount)
+        }
+      );
     }
   },
 
@@ -192,13 +252,13 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     4. PROFESSIONALS VERIFICATION & MODERATION
+     6. PROFESSIONALS VERIFICATION, MODERATION & EMAIL ALERTS
      ======================================================================== */
   renderProsTable(state) {
     const tbody = document.getElementById('adm-pros-tbody');
     if (!tbody) return;
 
-    if (state.professionals.length === 0) {
+    if (!state.professionals || state.professionals.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No professionals registered yet.</td></tr>`;
       return;
     }
@@ -210,6 +270,7 @@ const AdminApp = {
           <div>
             <div class="font-extrabold text-slate-900">${ServeHubDB.escapeHTML(p.businessName)}</div>
             <div class="text-slate-500">${ServeHubDB.escapeHTML(p.name)} &bull; ${ServeHubDB.escapeHTML(p.phone)}</div>
+            ${p.email ? `<div class="text-[11px] text-blue-600">${ServeHubDB.escapeHTML(p.email)}</div>` : ''}
           </div>
         </td>
         <td class="py-3 px-3 font-mono text-slate-600">@${ServeHubDB.escapeHTML(p.username)}</td>
@@ -226,7 +287,7 @@ const AdminApp = {
           </button>
         </td>
         <td class="py-3 px-3 text-right">
-          <button onclick="AdminApp.deletePro('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold">
+          <button onclick="AdminApp.deletePro('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold" title="Remove Professional">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </td>
@@ -237,11 +298,28 @@ const AdminApp = {
   async toggleVerifyPro(proId) {
     const state = ServeHubDB.getState();
     const pro = state.professionals.find(p => p.id === proId);
-    if (pro) {
-      pro.verified = !pro.verified;
-      await ServeHubDB.saveState(state);
-      this.renderDashboard();
-      this.notify(`${pro.businessName} verification set to ${pro.verified}`);
+    if (!pro) return;
+
+    pro.verified = !pro.verified;
+    await ServeHubDB.saveState(state);
+    this.renderDashboard();
+    this.notify(`${pro.businessName} verification set to ${pro.verified}`);
+
+    // Email the professional when their badge status changes
+    if (pro.email) {
+      await this.dispatchEmailNotification(
+        pro.email,
+        pro.verified
+          ? `🎉 Your Business is Now Verified on ServeHub Pro!`
+          : `⚠️ Verification Status Update - ${pro.businessName}`,
+        {
+          Business_Name: pro.businessName,
+          Username: `@${pro.username}`,
+          Verification_Status: pro.verified ? 'Verified Badge Active' : 'Unverified / Under Review',
+          Category: pro.category,
+          Service_Area: pro.location
+        }
+      );
     }
   },
 
@@ -255,13 +333,13 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     5. CATEGORIES, CLOUD SYNC & SECURITY SETTINGS
+     7. CATEGORIES, CLOUD SYNC & SECURITY SETTINGS
      ======================================================================== */
   renderCategoriesList(state) {
     const list = document.getElementById('adm-categories-list');
     if (!list) return;
 
-    list.innerHTML = state.categories.map(c => `
+    list.innerHTML = (state.categories || []).map(c => `
       <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
         <span class="font-bold text-slate-800"><i class="fa-solid ${ServeHubDB.escapeHTML(c.icon)} text-blue-600 mr-2"></i>${ServeHubDB.escapeHTML(c.name)} (${c.count} pros)</span>
         <button onclick="AdminApp.deleteCategory('${c.id}')" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-xmark"></i></button>
@@ -354,6 +432,9 @@ const AdminApp = {
     this.notify('Database reset to factory defaults.');
   },
 
+  /* ========================================================================
+     8. TOAST NOTIFICATIONS
+     ======================================================================== */
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -365,6 +446,7 @@ const AdminApp = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => AdminApp.init());
-// Expose AdminApp to global window scope so HTML onclick handlers can find it
+// Expose AdminApp globally so inline onclick="AdminApp.*" handlers work with ES modules
 window.AdminApp = AdminApp;
+
+document.addEventListener('DOMContentLoaded', () => AdminApp.init());
