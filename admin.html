@@ -250,33 +250,78 @@
       </section>
           <!-- Admin Subscriptions Tab Panel -->
 <!-- Admin Subscriptions & Pricing Tab Panel -->
+<!-- Admin Subscriptions & Custom Pricing Creator Tab Panel -->
 <div id="adm-tab-subscriptions" class="hidden space-y-6">
-  <!-- 1. Dynamic Subscription Pricing & Payment Settings -->
+
+  <!-- 1. Create New Subscription Pricing Plan -->
   <div class="bg-white rounded-3xl border border-slate-200 p-6">
     <h3 class="text-base font-extrabold text-slate-900 mb-1">
-      <i class="fa-solid fa-sliders text-blue-600 mr-1.5"></i>Subscription Pricing & Payment Gateway Settings
+      <i class="fa-solid fa-plus-circle text-blue-600 mr-1.5"></i>Create New Subscription Plan
     </h3>
-    <p class="text-xs text-slate-500 mb-4">Changes saved here update all Professional Dashboards in real time.</p>
+    <p class="text-xs text-slate-500 mb-4">Create custom pricing tiers (e.g. Weekly Boost, Monthly Pro, Annual VIP) that appear immediately in all Pro Dashboards.</p>
 
-    <form onsubmit="AdminApp.saveSubscriptionSettings(event)" class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <form onsubmit="AdminApp.createSubscriptionPlan(event)" class="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Verified Pro Price (₦)</label>
-          <input id="adm-price-pro" type="number" required min="500" step="100" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold" />
+          <label class="block text-xs font-bold text-slate-700 mb-1">Plan Name *</label>
+          <input id="new-plan-name" type="text" required placeholder="e.g. Quarterly VIP Boost" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Featured VIP Price (₦)</label>
-          <input id="adm-price-featured" type="number" required min="500" step="100" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold" />
+          <label class="block text-xs font-bold text-slate-700 mb-1">Badge Label *</label>
+          <input id="new-plan-badge" type="text" required placeholder="e.g. Top Boost / Best Value" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Billing Duration (Days)</label>
-          <input id="adm-plan-days" type="number" required min="1" max="365" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold" />
+          <label class="block text-xs font-bold text-slate-700 mb-1">Ranking Tier Style *</label>
+          <select id="new-plan-tier" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+            <option value="pro">Verified Pro (Blue Badge • Rank Weight 2)</option>
+            <option value="featured">Featured VIP (Gold Card + WhatsApp • Rank Weight 3)</option>
+          </select>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Bank Name (Manual Transfer)</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Price (₦) *</label>
+          <input id="new-plan-price" type="number" required min="100" step="100" placeholder="e.g. 15000" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Duration (Days) *</label>
+          <input id="new-plan-days" type="number" required min="1" max="3650" placeholder="e.g. 90" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
+        </div>
+        <div class="flex items-end pb-1.5">
+          <label class="inline-flex items-center gap-2 text-xs font-extrabold text-slate-800 cursor-pointer">
+            <input id="new-plan-popular" type="checkbox" class="w-4 h-4 rounded text-amber-500" />
+            <span>Highlight with "Most Popular" Ribbon</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Plan Features / Benefits (Comma-separated) *</label>
+        <input id="new-plan-features" type="text" required placeholder="Pinned to Row 1, Gold VIP Badge, Direct WhatsApp Button, 90 Days Validity" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white" />
+      </div>
+
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition shadow-sm">
+        + Publish New Pricing Plan
+      </button>
+    </form>
+
+    <!-- Active Plans List -->
+    <div class="mt-6">
+      <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Active Subscription Plans</h4>
+      <div id="adm-plans-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </div>
+  </div>
+
+  <!-- 2. Bank Transfer & Paystack Gateway Settings -->
+  <div class="bg-white rounded-3xl border border-slate-200 p-6">
+    <h3 class="text-base font-extrabold text-slate-900 mb-1">
+      <i class="fa-solid fa-building-columns text-blue-600 mr-1.5"></i>Payment Gateway & Bank Account Settings
+    </h3>
+    <form onsubmit="AdminApp.saveGatewaySettings(event)" class="space-y-4 mt-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Bank Name</label>
           <input id="adm-bank-name" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
         </div>
         <div>
@@ -288,19 +333,17 @@
           <input id="adm-bank-holder" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
         </div>
       </div>
-
       <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Paystack Public Key (`pk_test_...` or `pk_live_...`)</label>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Paystack Public Key</label>
         <input id="adm-paystack-key" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
       </div>
-
       <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
-        Save Pricing & Payment Settings
+        Save Bank & Paystack Details
       </button>
     </form>
   </div>
 
-  <!-- 2. Pending Manual Receipt Approvals -->
+  <!-- 3. Pending Manual Receipt Approvals -->
   <div class="bg-white rounded-3xl border border-slate-200 p-6">
     <h3 class="text-base font-extrabold text-slate-900 mb-1">Pending Subscription Receipts</h3>
     <p class="text-xs text-slate-500 mb-4">Review uploaded bank transfer receipts and approve or reject professional boost tiers.</p>

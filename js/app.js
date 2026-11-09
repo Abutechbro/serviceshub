@@ -1132,6 +1132,51 @@ const App = {
       setText('pro-current-plan-expiry', 'Standard listing placement');
       setText('pro-current-plan-badge', 'Active');
     }
+    
+    // Render Admin's Dynamic Subscription Plans
+    const plans = this.getSubscriptionPlans(state);
+    const plansGrid = document.getElementById('pro-dynamic-plans-grid');
+
+    if (plansGrid) {
+      plansGrid.innerHTML = plans.map(plan => {
+        const isVIP = plan.tierType === 'featured';
+        return `
+          <div class="rounded-3xl border-2 ${isVIP ? 'border-amber-400 bg-gradient-to-b from-amber-50/50 to-white shadow-lg' : 'border-slate-200 hover:border-blue-500'} p-6 flex flex-col justify-between relative overflow-hidden transition">
+            ${plan.popular ? `
+              <div class="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider">
+                Most Popular
+              </div>
+            ` : ''}
+            <div>
+              <span class="px-2.5 py-1 rounded-lg ${isVIP ? 'bg-amber-100 text-amber-800' : 'bg-blue-50 text-blue-700'} text-[11px] font-extrabold uppercase">
+                ${ServeHubDB.escapeHTML(plan.badge)}
+              </span>
+              <h4 class="text-lg font-extrabold text-slate-900 mt-3">${ServeHubDB.escapeHTML(plan.name)}</h4>
+              <div class="mt-2 flex items-baseline gap-1">
+                <span class="text-3xl font-black ${isVIP ? 'text-amber-600' : 'text-slate-900'}">${ServeHubDB.formatCurrency(plan.price)}</span>
+                <span class="text-xs text-slate-500 font-semibold">/ ${plan.durationDays} days</span>
+              </div>
+              <ul class="mt-4 space-y-2.5 text-xs text-slate-700 font-medium">
+                ${(plan.features || []).map(f => `
+                  <li><i class="fa-solid fa-check ${isVIP ? 'text-amber-600' : 'text-blue-600'} mr-2"></i>${ServeHubDB.escapeHTML(f)}</li>
+                `).join('')}
+              </ul>
+            </div>
+            <button onclick="App.upgradeProPlan('${plan.id}')" class="mt-6 w-full py-3 rounded-xl ${isVIP ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'} text-xs font-extrabold transition">
+              Subscribe to ${ServeHubDB.escapeHTML(plan.name)} ${isVIP ? '👑' : ''}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const manualSelect = document.getElementById('manual-plan-tier');
+    if (manualSelect && document.activeElement !== manualSelect) {
+      manualSelect.innerHTML = plans.map(plan => `
+        <option value="${plan.id}">${ServeHubDB.escapeHTML(plan.name)} — ${ServeHubDB.formatCurrency(plan.price)} (${plan.durationDays} Days)</option>
+      `).join('');
+    }
+
     },
 
     async saveProProfileSettings(e) {
@@ -1252,7 +1297,7 @@ const App = {
     /**
      * Launch Paystack Inline Checkout for Profile Boosting & Subscriptions
      */
-   upgradeProPlan(planType) {
+  upgradeProPlan(planId) {
     const activePro = ServeHubDB.getActivePro();
     if (!activePro) return;
 
@@ -1263,25 +1308,24 @@ const App = {
 
     const state = ServeHubDB.getState();
     const settings = state.settings || {};
-    const amountNaira = planType === 'featured'
-      ? Number(settings.featuredPlanPrice || 12000)
-      : Number(settings.proPlanPrice || 5000);
-    const durationDays = Number(settings.planDurationDays || 30);
-    const publicKey = (settings.paystackPublicKey || '').trim();
+    const plans = this.getSubscriptionPlans(state);
+    const plan = plans.find(p => p.id === planId) || plans[0];
+    if (!plan) return;
 
+    const publicKey = (settings.paystackPublicKey || '').trim();
     if (!publicKey || publicKey.includes('YOUR_PAYSTACK')) {
-      this.notify('Paystack Public Key not set yet in Admin Portal. Please use Direct Bank Transfer below.', 'error');
+      this.notify('Paystack Public Key not set in Admin Portal. Please use Direct Bank Transfer below.', 'error');
       return;
     }
 
     const handler = PaystackPop.setup({
       key: publicKey,
       email: activePro.email || settings.notifyEmail || 'idrisabubakry@gmail.com',
-      amount: amountNaira * 100,
+      amount: Number(plan.price) * 100,
       currency: 'NGN',
       ref: 'SHB_SUB_' + Math.floor(100000 + Math.random() * 900000),
       callback: function(response) {
-        App.completePaystackUpgrade(activePro.id, planType, durationDays, response.reference);
+        App.completePaystackUpgrade(activePro.id, plan.id, response.reference);
       },
       onClose: function() {
         App.notify('Payment window closed.', 'error');
@@ -1289,6 +1333,71 @@ const App = {
     });
 
     handler.openIframe();
+  },
+
+  async completePaystackUpgrade(proId, planId, reference) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    const plan = this.getSubscriptionPlans(state).find(p => p.id === planId);
+    if (!pro || !plan) return;
+
+    pro.planId = plan.id;
+    pro.planName = plan.name;
+    pro.planTier = plan.tierType;
+    pro.planWeight = plan.tierType === 'featured' ? 3 : 2;
+    pro.verified = true;
+    pro.planExpiry = new Date(Date.now() + Number(plan.durationDays) * 86400000).toISOString();
+    pro.paymentRef = reference;
+
+    await ServeHubDB.saveState(state, true);
+    this.renderAll();
+    this.notify(`Activated ${plan.name}! Ref: ${reference}`);
+  },
+
+  async submitManualPaymentReceipt(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const activePro = ServeHubDB.getActivePro();
+    if (!activePro) return;
+
+    const fileInput = document.getElementById('manual-receipt-file');
+    const planSelect = document.getElementById('manual-plan-tier');
+    const refInput = document.getElementById('manual-txn-ref');
+
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      this.notify('Please select a receipt image to upload.', 'error');
+      return;
+    }
+
+    try {
+      const receiptBase64 = await ServeHubDB.compressImage(file, 450, 0.7);
+      const state = ServeHubDB.getState();
+      const pro = state.professionals.find(p => p.id === activePro.id);
+      const plan = this.getSubscriptionPlans(state).find(p => p.id === planSelect?.value) || this.getSubscriptionPlans(state)[0];
+
+      if (!pro || !plan) return;
+
+      pro.pendingSubscription = {
+        planId: plan.id,
+        planName: plan.name,
+        planTier: plan.tierType,
+        durationDays: Number(plan.durationDays || 30),
+        price: Number(plan.price || 5000),
+        txnRef: String(refInput?.value || '').trim() || ('TRF-' + Date.now()),
+        receiptImage: receiptBase64 || '',
+        submittedAt: new Date().toLocaleString(),
+        status: 'pending_approval'
+      };
+
+      await ServeHubDB.saveState(state, true);
+      e.target.reset();
+      this.renderAll();
+      this.notify(`Receipt submitted for ${plan.name}! Awaiting Admin approval.`);
+    } catch (err) {
+      console.error('Manual Receipt Submission Error:', err);
+      this.notify('Error submitting receipt.', 'error');
+    }
   },
 
   async completePaystackUpgrade(proId, planType, durationDays, reference) {
@@ -1360,6 +1469,34 @@ const App = {
       this.notify('Error submitting receipt: ' + (err.message || 'Check console'), 'error');
     }
   },
+
+getSubscriptionPlans(state) {
+    const plans = state.settings?.subscriptionPlans;
+    if (Array.isArray(plans) && plans.length > 0) return plans;
+    return [
+      {
+        id: 'plan_pro_monthly',
+        name: 'Verified Pro Plan',
+        badge: 'Verified Badge',
+        price: 5000,
+        durationDays: 30,
+        tierType: 'pro',
+        popular: false,
+        features: ['Official Verified Blue Badge', 'Ranked above all Free tier pros', 'Up to 10 itemized services']
+      },
+      {
+        id: 'plan_vip_monthly',
+        name: 'Featured VIP Plan',
+        badge: 'Top Boost',
+        price: 12000,
+        durationDays: 30,
+        tierType: 'featured',
+        popular: true,
+        features: ['Pinned to Row 1 of search results', 'Gold Featured Badge & Highlighted Card', 'Direct WhatsApp button on main card']
+      }
+    ];
+  },
+
 };
 
 // Expose App globally so inline onclick="App.*" attributes always work

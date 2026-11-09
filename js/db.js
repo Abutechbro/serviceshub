@@ -38,13 +38,40 @@ const INITIAL_SEED_STATE = {
     adminPassword: 'admin123',
     supportWhatsApp: '2348000000000',
     notifyEmail: 'idrisabubakry@gmail.com',
-    proPlanPrice: 5000,
-    featuredPlanPrice: 12000,
-    planDurationDays: 30,
     paystackPublicKey: 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY',
     bankName: 'Guaranty Trust Bank (GTB)',
     bankAccountNumber: '0123456789',
-    bankAccountName: 'ServeHub Pro Technologies'
+    bankAccountName: 'ServeHub Pro Technologies',
+    subscriptionPlans: [
+      {
+        id: 'plan_pro_monthly',
+        name: 'Verified Pro Plan',
+        badge: 'Verified Badge',
+        price: 5000,
+        durationDays: 30,
+        tierType: 'pro',
+        popular: false,
+        features: [
+          'Official Verified Blue Badge',
+          'Ranked above all Free tier pros',
+          'Up to 10 itemized services'
+        ]
+      },
+      {
+        id: 'plan_vip_monthly',
+        name: 'Featured VIP Plan',
+        badge: 'Top Boost',
+        price: 12000,
+        durationDays: 30,
+        tierType: 'featured',
+        popular: true,
+        features: [
+          'Pinned to Row 1 of search results',
+          'Gold Featured Badge & Highlighted Card',
+          'Direct WhatsApp button on main card'
+        ]
+      }
+    ]
   },
   categories: [
     { id: 'cat_elec', name: 'Electrician', icon: 'fa-bolt', count: 1 },
