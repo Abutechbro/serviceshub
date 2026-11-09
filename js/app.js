@@ -133,7 +133,7 @@ const App = {
             proWorkspaceFooter?.classList.remove('hidden');
 
             if (brandSubtitle) {
-                brandSubtitle.textContent = 'Pro Workspace';
+                brandSubtitle.textContent = 'Workspace';
                 brandSubtitle.className = 'block text-[10px] font-extrabold uppercase tracking-widest text-blue-600 -mt-1';
             }
 
@@ -161,7 +161,7 @@ const App = {
             proWorkspaceFooter?.classList.add('hidden');
 
             if (brandSubtitle) {
-                brandSubtitle.textContent = 'Verified Pros';
+                brandSubtitle.textContent = 'Expert Service Network';
                 brandSubtitle.className = 'block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1';
             }
 
@@ -729,7 +729,7 @@ const App = {
 
         this.dispatchEmailNotification(
             newBooking.customerEmail,
-            `✅ Booking Confirmed [${newBooking.id}] - ${pro.businessName}`,
+            `Booking Confirmed [${newBooking.id}] - ${pro.businessName}`,
             {
                 Booking_Reference: newBooking.id,
                 Current_Status: 'Pending Professional Confirmation',
@@ -763,34 +763,40 @@ const App = {
         const cleanPhone = (b.proPhone || '').replace(/\D/g, '');
 
         body.innerHTML = `
-      <div class="text-center">
-        <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl mb-3">
-          <i class="fa-solid fa-check-double"></i>
+      <div class="relative">
+        <button onclick="document.getElementById('receipt-modal').classList.add('hidden')" class="absolute top-0 right-0 w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="text-center pt-2">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl mb-3">
+            <i class="fa-solid fa-check-double"></i>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-extrabold">Booking Ref: ${b.id}</span>
+          <h3 class="text-xl font-extrabold text-slate-900 mt-2">Booking Request Logged!</h3>
+          <p class="text-xs text-slate-500 mt-1">Email confirmation sent to <strong>${ServeHubDB.escapeHTML(b.customerEmail || 'your inbox')}</strong>.</p>
         </div>
-        <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-extrabold">Booking Ref: ${b.id}</span>
-        <h3 class="text-xl font-extrabold text-slate-900 mt-2">Booking Request Logged!</h3>
-        <p class="text-xs text-slate-500 mt-1">Email confirmation sent to <strong>${ServeHubDB.escapeHTML(b.customerEmail || 'your inbox')}</strong>.</p>
-      </div>
 
-      <div class="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-        <div class="flex justify-between"><span class="text-slate-500">Professional:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.proName)}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Service:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.serviceTitle)}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Schedule:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.preferredDate)} (${ServeHubDB.escapeHTML(b.preferredTime)})</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Client:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.customerName)}</span></div>
-        <div class="flex justify-between pt-2 border-t border-slate-200"><span class="text-slate-700 font-bold">Total Estimate:</span><span class="font-extrabold text-blue-600 text-sm">${ServeHubDB.formatCurrency(b.amount)}</span></div>
-      </div>
+        <div class="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+          <div class="flex justify-between"><span class="text-slate-500">Professional:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.proName)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Service:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.serviceTitle)}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Schedule:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.preferredDate)} (${ServeHubDB.escapeHTML(b.preferredTime)})</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Client:</span><span class="font-bold text-slate-900">${ServeHubDB.escapeHTML(b.customerName)}</span></div>
+          <div class="flex justify-between pt-2 border-t border-slate-200"><span class="text-slate-700 font-bold">Total Estimate:</span><span class="font-extrabold text-blue-600 text-sm">${ServeHubDB.formatCurrency(b.amount)}</span></div>
+        </div>
 
-      <div class="mt-6 space-y-2.5 no-print">
-        <a href="https://wa.me/${cleanPhone}?text=${waMessage}" target="_blank" rel="noopener" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
-          <i class="fa-brands fa-whatsapp text-base"></i> Send Instant Alert on WhatsApp
-        </a>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="window.print()" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">
-            <i class="fa-solid fa-print mr-1"></i> Print Receipt
-          </button>
-          <button onclick="App.closeReceiptAndTrack('${b.id}')" class="py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs">
-            Track Live Status
-          </button>
+        <div class="mt-6 space-y-2.5 no-print">
+          <a href="https://wa.me/${cleanPhone}?text=${waMessage}" target="_blank" rel="noopener" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+            <i class="fa-brands fa-whatsapp text-base"></i> Send Instant Alert on WhatsApp
+          </a>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="window.print()" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">
+              <i class="fa-solid fa-print mr-1"></i> Print Receipt
+            </button>
+            <button onclick="App.closeReceiptAndTrack('${b.id}')" class="py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs">
+              Track Live Status
+            </button>
+          </div>
         </div>
       </div>
     `;

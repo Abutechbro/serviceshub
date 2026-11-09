@@ -64,7 +64,7 @@
         </div>
         <div>
           <span class="font-extrabold text-xl tracking-tight text-slate-900">Serve<span class="text-blue-600">Hub</span></span>
-          <span id="brand-subtitle-badge" class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1">Verified Pros</span>
+          <span id="brand-subtitle-badge" class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 -mt-1"></span>
         </div>
       </div>
 
@@ -113,7 +113,7 @@
       <!-- 1D. LOGGED-IN PROFESSIONAL ACTIONS -->
       <div id="pro-header-actions" class="hidden items-center gap-2.5">
         <button onclick="App.previewMyShowroom()" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition">
-          <i class="fa-regular fa-eye text-blue-600"></i> Preview Showroom
+          <i class="fa-regular fa-eye text-blue-600"></i> Preview Profile
         </button>
         <button id="header-availability-btn" onclick="App.toggleProAvailability()" class="px-3.5 py-2 rounded-xl text-xs font-extrabold transition"></button>
         <button onclick="App.handleProLogout()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm">
@@ -469,7 +469,7 @@
                 <input id="edit-pro-phone" type="tel" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Notification Email (For Booking Alerts)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Your Email</label>
                 <input id="edit-pro-email" type="email" required placeholder="e.g. business@email.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
               </div>
               <div>
@@ -572,7 +572,7 @@
       <!-- 5A. POPUP LOGIN FORM -->
       <div id="auth-modal-login" class="p-6 sm:p-10">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold mb-3">
-          <i class="fa-solid fa-lock"></i> Pro Member Access
+          <i class="fa-solid fa-lock"></i> Login to Your Pro Workspace
         </div>
         <h2 class="text-2xl font-extrabold text-slate-900">Professional Login</h2>
         <p class="text-xs text-slate-500 mt-1">Sign in with your username and password to enter your dedicated business workspace.</p>
@@ -586,7 +586,7 @@
                 id="pro-login-username"
                 type="text"
                 required
-                placeholder="e.g. apex_electric"
+                placeholder="Enter your username"
                 class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
               />
             </div>
@@ -610,12 +610,12 @@
           </div>
 
           <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm transition shadow-md">
-            Login to Pro Workspace <i class="fa-solid fa-arrow-right ml-1.5"></i>
+            Login <i class="fa-solid fa-arrow-right ml-1.5"></i>
           </button>
         </form>
 
         <!-- Instant Demo Accounts -->
-        <div class="mt-6 pt-5 border-t border-slate-100">
+        <!-- <div class="mt-6 pt-5 border-t border-slate-100">
           <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Instant Demo Accounts (Click to Autofill)</p>
           <div class="flex flex-wrap gap-2">
             <button onclick="App.fillDemoPro('apex_electric', 'password123')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 font-semibold transition">
@@ -628,7 +628,7 @@
               🚰 aqua_plumb
             </button>
           </div>
-        </div>
+        </div> -->
 
         <!-- Switch to Register Link -->
         <div class="mt-6 text-center text-xs font-semibold text-slate-600">
@@ -643,7 +643,7 @@
           <i class="fa-solid fa-rocket"></i> Grow Your Business
         </div>
         <h2 class="text-2xl font-extrabold text-slate-900">Register as a Service Professional</h2>
-        <p class="text-xs text-slate-500 mt-1">Create your digital showroom, list your service prices, and receive direct customer bookings.</p>
+        <p class="text-xs text-slate-500 mt-1">Create your Professional Profile, list your service prices, and receive direct customer bookings.</p>
 
         <form id="pro-register-form" onsubmit="App.handleProRegistration(event)" class="mt-6 space-y-5">
           <!-- Step 1: Credentials -->
@@ -654,12 +654,12 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Choose Username *</label>
-                <input id="reg-username" type="text" required placeholder="e.g. spark_king" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white" />
+                <input id="reg-username" type="text" required placeholder="Enter a username" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Create Password *</label>
                 <div class="relative">
-                  <input id="reg-password" type="password" required minlength="6" placeholder="Min. 6 chars" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white" />
+                  <input id="reg-password" type="password" required minlength="6" placeholder="Enter a password Min. 6 chars" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white" />
                   <button type="button" onclick="App.togglePasswordVisibility('reg-password')" class="absolute right-3 top-2.5 text-slate-400">
                     <i class="fa-regular fa-eye"></i>
                   </button>
@@ -695,7 +695,7 @@
                 <input id="reg-phone" type="tel" required placeholder="e.g. 2348031234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Business Email (For Booking Alerts) *</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Valid Email Address*</label>
                 <input id="reg-email" type="email" required placeholder="e.g. contact@primevolt.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
               <div>
@@ -707,7 +707,7 @@
                 <input id="reg-exp" type="number" required min="1" max="50" value="5" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white" />
               </div>
               <div class="sm:col-span-2">
-                <label class="block text-xs font-bold text-slate-700 mb-1">Profile Photo (Auto-Compressed)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Profile Photo</label>
                 <input id="reg-avatar" type="file" accept="image/*" class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700" />
               </div>
             </div>
@@ -737,7 +737,7 @@
           </div>
 
           <button type="submit" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm transition shadow-lg shadow-blue-600/20">
-            <i class="fa-solid fa-check-double mr-1.5"></i> Launch My Profile
+            <i class="fa-solid fa-check-double mr-1.5"></i> Register
           </button>
         </form>
 
@@ -867,7 +867,7 @@
         <span class="text-slate-900 font-extrabold">ServeHub Workspace</span> &bull; Logged in as <span id="footer-pro-username" class="text-blue-600 font-bold"></span>
       </div>
       <div class="flex items-center gap-4">
-        <button onclick="App.previewMyShowroom()" class="hover:text-blue-600">Preview My Public Showroom</button>
+        <button onclick="App.previewMyShowroom()" class="hover:text-blue-600">Preview My Public Profile</button>
         <span>&bull;</span>
         <button onclick="App.handleProLogout()" class="text-rose-600 font-bold hover:underline">Logout</button>
       </div>
