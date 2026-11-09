@@ -77,7 +77,7 @@ const AdminApp = {
 
   switchAdminTab(tabId) {
     this.activeTab = tabId;
-    const tabs = ['bookings', 'pros', 'categories', 'cloud'];
+    const tabs = ['bookings', 'pros', 'categories', 'cloud', 'subscriptions'];
 
     tabs.forEach(t => {
       const panel = document.getElementById(`adm-tab-${t}`);
@@ -170,6 +170,44 @@ const AdminApp = {
     this.renderBookingsTable(state);
     this.renderProsTable(state);
     this.renderCategoriesList(state);
+
+    // Inside renderDashboard() in js/admin.js, add:
+    const subsContainer = document.getElementById('adm-pending-subs-list');
+    if (subsContainer) {
+      const pendingPros = (state.professionals || []).filter(p => p.pendingSubscription && p.pendingSubscription.status === 'pending_approval');
+      if (pendingPros.length === 0) {
+        subsContainer.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No pending subscription receipts.</p>`;
+      } else {
+        subsContainer.innerHTML = pendingPros.map(p => `
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-extrabold text-blue-600">${ServeHubDB.escapeHTML(p.businessName)} (@${ServeHubDB.escapeHTML(p.username)})</span>
+              <p class="text-xs font-bold text-slate-800 mt-0.5">Tier: <span class="uppercase text-amber-600">${p.pendingSubscription.planTier}</span> &bull; Ref: <span class="font-mono">${ServeHubDB.escapeHTML(p.pendingSubscription.txnRef)}</span></p>
+              <p class="text-[11px] text-slate-500">Submitted: ${p.pendingSubscription.submittedAt}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <a href="${p.pendingSubscription.receiptImage}" target="_blank" class="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-800 text-xs font-bold">View Receipt</a>
+              <button onclick="AdminApp.approveSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">Approve</button>
+              <button onclick="AdminApp.rejectSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold">Reject</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Populate Subscription Pricing & Bank Inputs in Admin
+    const s = state.settings || {};
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el) el.value = val;
+    };
+    setVal('adm-price-pro', s.proPlanPrice ?? 5000);
+    setVal('adm-price-featured', s.featuredPlanPrice ?? 12000);
+    setVal('adm-plan-days', s.planDurationDays ?? 30);
+    setVal('adm-bank-name', s.bankName || 'Guaranty Trust Bank (GTB)');
+    setVal('adm-bank-num', s.bankAccountNumber || '0123456789');
+    setVal('adm-bank-holder', s.bankAccountName || 'ServeHub Pro Technologies');
+    setVal('adm-paystack-key', s.paystackPublicKey || 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY');
   },
 
   /* ========================================================================
@@ -263,36 +301,52 @@ const AdminApp = {
       return;
     }
 
-    tbody.innerHTML = state.professionals.map(p => `
-      <tr class="hover:bg-slate-50">
-        <td class="py-3 px-3 flex items-center gap-2.5">
-          <img src="${ServeHubDB.escapeHTML(p.avatar)}" class="w-9 h-9 rounded-xl object-cover" />
-          <div>
-            <div class="font-extrabold text-slate-900">${ServeHubDB.escapeHTML(p.businessName)}</div>
-            <div class="text-slate-500">${ServeHubDB.escapeHTML(p.name)} &bull; ${ServeHubDB.escapeHTML(p.phone)}</div>
-            ${p.email ? `<div class="text-[11px] text-blue-600">${ServeHubDB.escapeHTML(p.email)}</div>` : ''}
+    tbody.innerHTML = state.professionals.map(p => {
+      const pendingSub = p.pendingSubscription;
+      const subApprovalHTML = pendingSub && pendingSub.status === 'pending_approval' ? `
+        <div class="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px]">
+          <span class="font-extrabold text-amber-800">Pending ${pendingSub.planTier.toUpperCase()} Request</span>
+          <p class="text-slate-600 font-mono">Ref: ${ServeHubDB.escapeHTML(pendingSub.txnRef)}</p>
+          <div class="mt-1 flex items-center gap-2">
+            <a href="${pendingSub.receiptImage}" target="_blank" class="text-blue-600 font-bold underline">View Receipt</a>
+            <button onclick="AdminApp.approveSubscription('${p.id}')" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">Approve</button>
+            <button onclick="AdminApp.rejectSubscription('${p.id}')" class="px-2 py-0.5 rounded bg-rose-600 text-white font-bold">Reject</button>
           </div>
-        </td>
-        <td class="py-3 px-3 font-mono text-slate-600">@${ServeHubDB.escapeHTML(p.username)}</td>
-        <td class="py-3 px-3">
-          <span class="font-bold text-blue-600">${ServeHubDB.escapeHTML(p.category)}</span>
-          <span class="block text-slate-400">${ServeHubDB.escapeHTML(p.location)}</span>
-        </td>
-        <td class="py-3 px-3 font-bold">${ServeHubDB.formatCurrency(p.baseRate)}</td>
-        <td class="py-3 px-3">
-          <button onclick="AdminApp.toggleVerifyPro('${p.id}')" class="px-3 py-1 rounded-full text-[11px] font-extrabold transition ${
-            p.verified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-          }">
-            ${p.verified ? '✓ Verified Pro' : 'Unverified (Click to Verify)'}
-          </button>
-        </td>
-        <td class="py-3 px-3 text-right">
-          <button onclick="AdminApp.deletePro('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold" title="Remove Professional">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
+        </div>
+      ` : '';
+
+      return `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-3 flex items-center gap-2.5">
+            <img src="${ServeHubDB.escapeHTML(p.avatar)}" class="w-9 h-9 rounded-xl object-cover" />
+            <div>
+              <div class="font-extrabold text-slate-900">${ServeHubDB.escapeHTML(p.businessName)}</div>
+              <div class="text-slate-500">${ServeHubDB.escapeHTML(p.name)} &bull; ${ServeHubDB.escapeHTML(p.phone)}</div>
+              ${p.email ? `<div class="text-[11px] text-blue-600">${ServeHubDB.escapeHTML(p.email)}</div>` : ''}
+              ${subApprovalHTML}
+            </div>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-600">@${ServeHubDB.escapeHTML(p.username)}</td>
+          <td class="py-3 px-3">
+            <span class="font-bold text-blue-600">${ServeHubDB.escapeHTML(p.category)}</span>
+            <span class="block text-slate-400">${ServeHubDB.escapeHTML(p.location)}</span>
+          </td>
+          <td class="py-3 px-3 font-bold">${ServeHubDB.formatCurrency(p.baseRate)}</td>
+          <td class="py-3 px-3">
+            <button onclick="AdminApp.toggleVerifyPro('${p.id}')" class="px-3 py-1 rounded-full text-[11px] font-extrabold transition ${
+              p.verified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+            }">
+              ${p.verified ? '✓ Verified Pro' : 'Unverified (Click to Verify)'}
+            </button>
+          </td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="AdminApp.deletePro('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold" title="Remove Professional">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   },
 
   async toggleVerifyPro(proId) {
@@ -443,7 +497,84 @@ const AdminApp = {
     toast.innerHTML = `<span>${ServeHubDB.escapeHTML(message)}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3500);
-  }
+  },
+
+  async approveSubscription(proId) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    if (!pro || !pro.pendingSubscription) return;
+
+    const plan = pro.pendingSubscription.planTier;
+    pro.planTier = plan;
+    pro.planWeight = plan === 'featured' ? 3 : 2;
+    pro.verified = true;
+    pro.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString(); // 30 Days validity
+    pro.pendingSubscription.status = 'approved';
+
+    await ServeHubDB.saveState(state);
+    this.renderDashboard();
+    this.notify(`Approved ${plan.toUpperCase()} subscription for ${pro.businessName}!`);
+
+    if (pro.email) {
+      await this.dispatchEmailNotification(
+        pro.email,
+        `🎉 Your ${plan.toUpperCase()} Subscription Has Been Approved!`,
+        {
+          Business_Name: pro.businessName,
+          Activated_Plan: plan.toUpperCase(),
+          Valid_Until: pro.planExpiry.split('T')[0]
+        }
+      );
+    }
+  },
+
+  async rejectSubscription(proId) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    if (!pro) return;
+
+    delete pro.pendingSubscription;
+    await ServeHubDB.saveState(state);
+    this.renderDashboard();
+    this.notify('Subscription request rejected.');
+  },
+
+  async saveSubscriptionSettings(e) {
+    e.preventDefault();
+    const state = ServeHubDB.getState();
+    if (!state.settings) state.settings = {};
+
+    state.settings.proPlanPrice = Number(document.getElementById('adm-price-pro').value || 5000);
+    state.settings.featuredPlanPrice = Number(document.getElementById('adm-price-featured').value || 12000);
+    state.settings.planDurationDays = Number(document.getElementById('adm-plan-days').value || 30);
+    state.settings.bankName = document.getElementById('adm-bank-name').value.trim();
+    state.settings.bankAccountNumber = document.getElementById('adm-bank-num').value.trim();
+    state.settings.bankAccountName = document.getElementById('adm-bank-holder').value.trim();
+    state.settings.paystackPublicKey = document.getElementById('adm-paystack-key').value.trim();
+
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify('Subscription prices and payment settings updated globally!');
+  },
+
+  async approveSubscription(proId) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    if (!pro || !pro.pendingSubscription) return;
+
+    const days = Number(state.settings?.planDurationDays || 30);
+    const plan = pro.pendingSubscription.planTier;
+    pro.planTier = plan;
+    pro.planWeight = plan === 'featured' ? 3 : 2;
+    pro.verified = true;
+    pro.planExpiry = new Date(Date.now() + days * 86400000).toISOString();
+    pro.pendingSubscription.status = 'approved';
+
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify(`Approved ${plan.toUpperCase()} subscription for ${pro.businessName}!`);
+  },
+
 };
 
 // Expose AdminApp globally so inline onclick="AdminApp.*" handlers work with ES modules

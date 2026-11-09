@@ -37,7 +37,14 @@ const INITIAL_SEED_STATE = {
     adminUsername: 'admin',
     adminPassword: 'admin123',
     supportWhatsApp: '2348000000000',
-    notifyEmail: 'idrisabubakry@gmail.com'
+    notifyEmail: 'idrisabubakry@gmail.com',
+    proPlanPrice: 5000,
+    featuredPlanPrice: 12000,
+    planDurationDays: 30,
+    paystackPublicKey: 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY',
+    bankName: 'Guaranty Trust Bank (GTB)',
+    bankAccountNumber: '0123456789',
+    bankAccountName: 'ServeHub Pro Technologies'
   },
   categories: [
     { id: 'cat_elec', name: 'Electrician', icon: 'fa-bolt', count: 1 },
