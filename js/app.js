@@ -41,7 +41,6 @@ const App = {
 
     /* ========================================================================
        2. ZERO-BACKEND EMAIL DISPATCHER (FALLBACK-SAFE)
-       Uses ServeHubDB.sendEmailAlert if present, or dispatches directly via AJAX
        ======================================================================== */
     async dispatchEmailNotification(toEmail, subject, payloadData) {
         if (!toEmail || !toEmail.includes('@')) return { ok: false };
@@ -304,57 +303,57 @@ const App = {
         this.renderMarketplace();
     },
 
-  renderMarketplace() {
-    const state = ServeHubDB.getState();
-    const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
-    const location = (document.getElementById('search-location')?.value || '').trim().toLowerCase();
-    const verifiedOnly = document.getElementById('filter-verified')?.checked || false;
-    const availableOnly = document.getElementById('filter-available')?.checked || false;
-    const sortBy = document.getElementById('sort-pros')?.value || 'featured';
+    renderMarketplace() {
+        const state = ServeHubDB.getState();
+        const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
+        const location = (document.getElementById('search-location')?.value || '').trim().toLowerCase();
+        const verifiedOnly = document.getElementById('filter-verified')?.checked || false;
+        const availableOnly = document.getElementById('filter-available')?.checked || false;
+        const sortBy = document.getElementById('sort-pros')?.value || 'featured';
 
-    const now = Date.now();
-    const getEffectiveWeight = (pro) => {
-      if (!pro.planExpiry || new Date(pro.planExpiry).getTime() <= now) return 1;
-      if (pro.planTier === 'featured') return 3;
-      if (pro.planTier === 'pro') return 2;
-      return Number(pro.planWeight || 1);
-    };
+        const now = Date.now();
+        const getEffectiveWeight = (pro) => {
+            if (!pro.planExpiry || new Date(pro.planExpiry).getTime() <= now) return 1;
+            if (pro.planTier === 'featured') return 3;
+            if (pro.planTier === 'pro') return 2;
+            return Number(pro.planWeight || 1);
+        };
 
-    let filtered = state.professionals.filter(pro => {
-      const matchCat = this.activeCategory === 'All' || pro.category === this.activeCategory;
-      const matchLoc = !location || pro.location.toLowerCase().includes(location);
-      const matchVer = !verifiedOnly || pro.verified;
-      const matchAvail = !availableOnly || pro.available;
+        let filtered = state.professionals.filter(pro => {
+            const matchCat = this.activeCategory === 'All' || pro.category === this.activeCategory;
+            const matchLoc = !location || pro.location.toLowerCase().includes(location);
+            const matchVer = !verifiedOnly || pro.verified;
+            const matchAvail = !availableOnly || pro.available;
 
-      const searchableText = [
-        pro.name,
-        pro.businessName,
-        pro.category,
-        pro.bio,
-        ...(pro.services || []).map(s => s.title)
-      ].join(' ').toLowerCase();
+            const searchableText = [
+                pro.name,
+                pro.businessName,
+                pro.category,
+                pro.bio,
+                ...(pro.services || []).map(s => s.title)
+            ].join(' ').toLowerCase();
 
-      const matchKey = !keyword || searchableText.includes(keyword);
-      return matchCat && matchLoc && matchVer && matchAvail && matchKey;
-    });
+            const matchKey = !keyword || searchableText.includes(keyword);
+            return matchCat && matchLoc && matchVer && matchAvail && matchKey;
+        });
 
-    filtered.sort((a, b) => {
-      const weightDiff = getEffectiveWeight(b) - getEffectiveWeight(a);
-      if (weightDiff !== 0) return weightDiff;
+        filtered.sort((a, b) => {
+            const weightDiff = getEffectiveWeight(b) - getEffectiveWeight(a);
+            if (weightDiff !== 0) return weightDiff;
 
-      if (sortBy === 'price-asc') return a.baseRate - b.baseRate;
-      if (sortBy === 'price-desc') return b.baseRate - a.baseRate;
-      if (sortBy === 'jobs-desc') return b.completedJobs - a.completedJobs;
-      return (b.verified ? 1 : 0) - (a.verified ? 1 : 0);
-    });
+            if (sortBy === 'price-asc') return a.baseRate - b.baseRate;
+            if (sortBy === 'price-desc') return b.baseRate - a.baseRate;
+            if (sortBy === 'jobs-desc') return b.completedJobs - a.completedJobs;
+            return (b.verified ? 1 : 0) - (a.verified ? 1 : 0);
+        });
 
-    const countEl = document.getElementById('pro-results-count');
-    if (countEl) countEl.textContent = filtered.length;
-    const grid = document.getElementById('professionals-grid');
-    if (!grid) return;
+        const countEl = document.getElementById('pro-results-count');
+        if (countEl) countEl.textContent = filtered.length;
+        const grid = document.getElementById('professionals-grid');
+        if (!grid) return;
 
-    if (filtered.length === 0) {
-      grid.innerHTML = `
+        if (filtered.length === 0) {
+            grid.innerHTML = `
         <div class="col-span-full bg-white rounded-3xl border border-slate-200 p-12 text-center">
           <div class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-3">
             <i class="fa-solid fa-user-slash"></i>
@@ -364,29 +363,29 @@ const App = {
           <button onclick="App.resetFilters()" class="mt-4 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold">Reset Filters</button>
         </div>
       `;
-      return;
-    }
+            return;
+        }
 
-    grid.innerHTML = filtered.map(pro => {
-      const rating = ServeHubDB.calculateRating(pro);
-      const topServices = (pro.services || []).slice(0, 2);
-      const weight = getEffectiveWeight(pro);
-      const isFeatured = weight === 3;
-      const cleanPhone = (pro.phone || '').replace(/\D/g, '');
-      const waText = encodeURIComponent(`Hello ${pro.businessName}, I saw your Featured VIP profile on ServeHub Pro and would like to inquire about your services.`);
+        grid.innerHTML = filtered.map(pro => {
+            const rating = ServeHubDB.calculateRating(pro);
+            const topServices = (pro.services || []).slice(0, 2);
+            const weight = getEffectiveWeight(pro);
+            const isFeatured = weight === 3;
+            const cleanPhone = (pro.phone || '').replace(/\D/g, '');
+            const waText = encodeURIComponent(`Hello ${pro.businessName}, I saw your Featured VIP profile on ServeHub Pro and would like to inquire about your services.`);
 
-      const cardClasses = isFeatured
-        ? 'pro-card bg-gradient-to-b from-amber-50/60 via-white to-white rounded-3xl border-2 border-amber-400 shadow-lg shadow-amber-500/10 overflow-hidden flex flex-col justify-between relative'
-        : 'pro-card bg-white rounded-3xl border border-slate-200/90 overflow-hidden flex flex-col justify-between';
+            const cardClasses = isFeatured
+                ? 'pro-card bg-gradient-to-b from-amber-50/60 via-white to-white rounded-3xl border-2 border-amber-400 shadow-lg shadow-amber-500/10 overflow-hidden flex flex-col justify-between relative'
+                : 'pro-card bg-white rounded-3xl border border-slate-200/90 overflow-hidden flex flex-col justify-between';
 
-      const featuredBanner = isFeatured
-        ? `<div class="bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-slate-950 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider flex items-center justify-between">
+            const featuredBanner = isFeatured
+                ? `<div class="bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 text-slate-950 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider flex items-center justify-between">
              <span><i class="fa-solid fa-crown mr-1"></i> Featured VIP Pro</span>
              <span class="bg-slate-950/15 px-2 py-0.5 rounded text-[10px]">Top Recommended</span>
            </div>`
-        : '';
+                : '';
 
-      return `
+            return `
         <article class="${cardClasses}">
           <div>
             ${featuredBanner}
@@ -457,11 +456,11 @@ const App = {
           </div>
         </article>
       `;
-    }).join('');
-  },
+        }).join('');
+    },
 
     /* ========================================================================
-       6. SHOWROOM MODAL, REVIEWS & BOOKING CREATION (WITH EMAIL INPUT)
+       6. SHOWROOM MODAL, REVIEWS & BOOKING CREATION
        ======================================================================== */
     openShowroom(proId) {
         const state = ServeHubDB.getState();
@@ -674,7 +673,7 @@ const App = {
     },
 
     /* ========================================================================
-       7. BOOKING SUBMISSION, DUAL EMAIL ALERTS & LIVE TRACKER
+       7. BOOKING SUBMISSION & LIVE TRACKER
        ======================================================================== */
     async submitBooking(e, proId) {
         e.preventDefault();
@@ -716,7 +715,6 @@ const App = {
         this.showBookingReceipt(newBooking);
         this.notify(`Booking ${newBooking.id} confirmed! Sending email alerts...`);
 
-        // 1. Dispatch New Booking Alert Email to the Professional
         this.dispatchEmailNotification(
             newBooking.proEmail,
             `🚨 New Booking Request [${newBooking.id}] - ${newBooking.serviceTitle}`,
@@ -734,7 +732,6 @@ const App = {
             }
         );
 
-        // 2. Dispatch Instant Confirmation Email to the Customer
         this.dispatchEmailNotification(
             newBooking.customerEmail,
             `✅ Booking Confirmed [${newBooking.id}] - ${pro.businessName}`,
@@ -872,7 +869,7 @@ const App = {
     },
 
     /* ========================================================================
-       8. PRO AUTHENTICATION, EMAIL REGISTRATION & WORKSPACE MANAGEMENT
+       8. PRO AUTHENTICATION & WORKSPACE MANAGEMENT
        ======================================================================== */
     populateCategorySelect() {
         const select = document.getElementById('reg-category');
@@ -999,6 +996,16 @@ const App = {
     },
 
     renderProPortalState() {
+        // 1. Refresh active professional session from latest DB state
+        const currentActivePro = ServeHubDB.getActivePro();
+        if (currentActivePro) {
+            const freshState = ServeHubDB.getState();
+            const latestPro = (freshState.professionals || []).find(p => p.id === currentActivePro.id);
+            if (latestPro) {
+                localStorage.setItem('SERVEHUB_ACTIVE_PRO', JSON.stringify(latestPro));
+            }
+        }
+
         const activePro = ServeHubDB.getActivePro();
         const dashView = document.getElementById('view-pro-portal');
 
@@ -1020,7 +1027,7 @@ const App = {
         if (headerAvailBtn) {
             headerAvailBtn.className = activePro.available
                 ? 'px-3.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 transition'
-                : 'px-3.5 py-2 rounded-xl text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200 transition';
+                : 'px-3.5 py-2 rounded-xl text-xs font-extrabold bg-amber-50 text-amber-700 border border-emerald-200 transition';
             headerAvailBtn.innerHTML = activePro.available
                 ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>Available'
                 : '<span class="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>Busy';
@@ -1090,57 +1097,43 @@ const App = {
         }
 
         // Sync dynamic subscription pricing & bank info set by Admin
-    const settings = state.settings || {};
-    const proPrice = Number(settings.proPlanPrice || 5000);
-    const featPrice = Number(settings.featuredPlanPrice || 12000);
-    const durationDays = Number(settings.planDurationDays || 30);
+        const settings = state.settings || {};
+        const setText = (id, txt) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+        };
 
-    const setText = (id, txt) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = txt;
-    };
+        setText('ui-bank-name', settings.bankName || 'Guaranty Trust Bank (GTB)');
+        setText('ui-bank-num', settings.bankAccountNumber || '0123456789');
+        setText('ui-bank-holder', settings.bankAccountName || 'ServeHub Pro Technologies');
 
-    setText('ui-price-pro', ServeHubDB.formatCurrency(proPrice));
-    setText('ui-price-featured', ServeHubDB.formatCurrency(featPrice));
-    document.querySelectorAll('.ui-plan-days').forEach(el => (el.textContent = durationDays));
+        // Render Active Subscription Status & Expiry Date
+        const isPlanActive = activePro.planExpiry && new Date(activePro.planExpiry).getTime() > Date.now();
+        const expiryDateOnly = activePro.planExpiry ? activePro.planExpiry.split('T')[0] : '';
 
-    setText('ui-bank-name', settings.bankName || 'Guaranty Trust Bank (GTB)');
-    setText('ui-bank-num', settings.bankAccountNumber || '0123456789');
-    setText('ui-bank-holder', settings.bankAccountName || 'ServeHub Pro Technologies');
-    setText('ui-bank-pro-price', `${ServeHubDB.formatCurrency(proPrice)} / ${durationDays} Days`);
-    setText('ui-bank-feat-price', `${ServeHubDB.formatCurrency(featPrice)} / ${durationDays} Days`);
+        if (activePro.pendingSubscription?.status === 'pending_approval') {
+            setText('pro-current-plan-title', `Pending: ${activePro.pendingSubscription.planName || activePro.pendingSubscription.planTier.toUpperCase()}`);
+            setText('pro-current-plan-expiry', `Receipt Ref: ${activePro.pendingSubscription.txnRef} (Under Admin Review)`);
+            setText('pro-current-plan-badge', 'Pending Review');
+        } else if (isPlanActive) {
+            const activePlanName = activePro.planName || (activePro.planTier === 'featured' ? 'Featured VIP Plan 👑' : 'Verified Pro Plan ✓');
+            setText('pro-current-plan-title', activePlanName);
+            setText('pro-current-plan-expiry', `Active & Valid until ${expiryDateOnly}`);
+            setText('pro-current-plan-badge', 'Active Plan');
+        } else {
+            setText('pro-current-plan-title', 'Free Starter Tier');
+            setText('pro-current-plan-expiry', 'Standard listing placement (Upgrade to boost ranking)');
+            setText('pro-current-plan-badge', 'Free Tier');
+        }
 
-    setText('opt-manual-pro', `Verified Pro Plan (${ServeHubDB.formatCurrency(proPrice)})`);
-    setText('opt-manual-featured', `Featured VIP Plan (${ServeHubDB.formatCurrency(featPrice)})`);
+        // Render Admin's Dynamic Subscription Plans
+        const plans = this.getSubscriptionPlans(state);
+        const plansGrid = document.getElementById('pro-dynamic-plans-grid');
 
-    // Update Active Subscription Banner
-    const isPlanActive = activePro.planExpiry && new Date(activePro.planExpiry).getTime() > Date.now();
-    if ( activePro.pendingSubscription?.status === 'pending_approval' ) {
-      setText('pro-current-plan-title', `Pending ${activePro.pendingSubscription.planTier.toUpperCase()} Approval`);
-      setText('pro-current-plan-expiry', `Receipt Ref: ${activePro.pendingSubscription.txnRef} (Under Admin Review)`);
-      setText('pro-current-plan-badge', 'Pending Review');
-    } else if (isPlanActive && activePro.planTier === 'featured') {
-      setText('pro-current-plan-title', 'Featured VIP Plan 👑');
-      setText('pro-current-plan-expiry', `Expires on ${activePro.planExpiry.split('T')[0]}`);
-      setText('pro-current-plan-badge', 'VIP Active');
-    } else if (isPlanActive && activePro.planTier === 'pro') {
-      setText('pro-current-plan-title', 'Verified Pro Plan ✓');
-      setText('pro-current-plan-expiry', `Expires on ${activePro.planExpiry.split('T')[0]}`);
-      setText('pro-current-plan-badge', 'Pro Active');
-    } else {
-      setText('pro-current-plan-title', 'Free Starter Tier');
-      setText('pro-current-plan-expiry', 'Standard listing placement');
-      setText('pro-current-plan-badge', 'Active');
-    }
-    
-    // Render Admin's Dynamic Subscription Plans
-    const plans = this.getSubscriptionPlans(state);
-    const plansGrid = document.getElementById('pro-dynamic-plans-grid');
-
-    if (plansGrid) {
-      plansGrid.innerHTML = plans.map(plan => {
-        const isVIP = plan.tierType === 'featured';
-        return `
+        if (plansGrid) {
+            plansGrid.innerHTML = plans.map(plan => {
+                const isVIP = plan.tierType === 'featured';
+                return `
           <div class="rounded-3xl border-2 ${isVIP ? 'border-amber-400 bg-gradient-to-b from-amber-50/50 to-white shadow-lg' : 'border-slate-200 hover:border-blue-500'} p-6 flex flex-col justify-between relative overflow-hidden transition">
             ${plan.popular ? `
               <div class="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider">
@@ -1167,16 +1160,15 @@ const App = {
             </button>
           </div>
         `;
-      }).join('');
-    }
+            }).join('');
+        }
 
-    const manualSelect = document.getElementById('manual-plan-tier');
-    if (manualSelect && document.activeElement !== manualSelect) {
-      manualSelect.innerHTML = plans.map(plan => `
+        const manualSelect = document.getElementById('manual-plan-tier');
+        if (manualSelect && document.activeElement !== manualSelect) {
+            manualSelect.innerHTML = plans.map(plan => `
         <option value="${plan.id}">${ServeHubDB.escapeHTML(plan.name)} — ${ServeHubDB.formatCurrency(plan.price)} (${plan.durationDays} Days)</option>
       `).join('');
-    }
-
+        }
     },
 
     async saveProProfileSettings(e) {
@@ -1281,7 +1273,7 @@ const App = {
     },
 
     /* ========================================================================
-       9. TOAST NOTIFICATIONS
+       9. TOAST NOTIFICATIONS & PAYSTACK / MANUAL SUBMISSIONS
        ======================================================================== */
     notify(message, type = 'success') {
         const container = document.getElementById('toast-container');
@@ -1294,209 +1286,146 @@ const App = {
         setTimeout(() => toast.remove(), 3500);
     },
 
-    /**
-     * Launch Paystack Inline Checkout for Profile Boosting & Subscriptions
-     */
-  upgradeProPlan(planId) {
-    const activePro = ServeHubDB.getActivePro();
-    if (!activePro) return;
+    upgradeProPlan(planId) {
+        const activePro = ServeHubDB.getActivePro();
+        if (!activePro) return;
 
-    if (typeof PaystackPop === 'undefined') {
-      this.notify('Paystack SDK failed to load.', 'error');
-      return;
+        if (typeof PaystackPop === 'undefined') {
+            this.notify('Paystack SDK failed to load.', 'error');
+            return;
+        }
+
+        const state = ServeHubDB.getState();
+        const settings = state.settings || {};
+        const plans = this.getSubscriptionPlans(state);
+        const plan = plans.find(p => p.id === planId) || plans[0];
+        if (!plan) return;
+
+        const publicKey = (settings.paystackPublicKey || '').trim();
+        if (!publicKey || publicKey.includes('YOUR_PAYSTACK')) {
+            this.notify('Paystack Public Key not set in Admin Portal. Please use Direct Bank Transfer below.', 'error');
+            return;
+        }
+
+        const handler = PaystackPop.setup({
+            key: publicKey,
+            email: activePro.email || settings.notifyEmail || 'idrisabubakry@gmail.com',
+            amount: Number(plan.price) * 100,
+            currency: 'NGN',
+            ref: 'SHB_SUB_' + Math.floor(100000 + Math.random() * 900000),
+            callback: function(response) {
+                App.completePaystackUpgrade(activePro.id, plan.id, response.reference);
+            },
+            onClose: function() {
+                App.notify('Payment window closed.', 'error');
+            }
+        });
+
+        handler.openIframe();
+    },
+
+    async completePaystackUpgrade(proId, planId, reference) {
+        const state = ServeHubDB.getState();
+        const pro = state.professionals.find(p => p.id === proId);
+        const plan = this.getSubscriptionPlans(state).find(p => p.id === planId);
+        if (!pro || !plan) return;
+
+        pro.planId = plan.id;
+        pro.planName = plan.name;
+        pro.planTier = plan.tierType;
+        pro.planWeight = plan.tierType === 'featured' ? 3 : 2;
+        pro.verified = true;
+        pro.planExpiry = new Date(Date.now() + Number(plan.durationDays) * 86400000).toISOString();
+        pro.paymentRef = reference;
+
+        await ServeHubDB.saveState(state, true);
+        this.renderAll();
+        this.notify(`Activated ${plan.name}! Ref: ${reference}`);
+    },
+
+    async submitManualPaymentReceipt(e) {
+        if (e && e.preventDefault) e.preventDefault();
+
+        const activePro = ServeHubDB.getActivePro();
+        if (!activePro) {
+            this.notify('Session expired. Please log in again.', 'error');
+            return;
+        }
+
+        const fileInput = document.getElementById('manual-receipt-file');
+        const planSelect = document.getElementById('manual-plan-tier');
+        const refInput = document.getElementById('manual-txn-ref');
+
+        if (!fileInput || !planSelect || !refInput) {
+            this.notify('Form inputs missing in index.html (#manual-receipt-file, #manual-plan-tier, #manual-txn-ref).', 'error');
+            return;
+        }
+
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+            this.notify('Please select a receipt image to upload.', 'error');
+            return;
+        }
+
+        try {
+            const receiptBase64 = await ServeHubDB.compressImage(file, 450, 0.7);
+            const state = ServeHubDB.getState();
+            const pro = state.professionals.find(p => p.id === activePro.id);
+            const plan = this.getSubscriptionPlans(state).find(p => p.id === planSelect.value) || this.getSubscriptionPlans(state)[0];
+
+            if (!pro || !plan) {
+                this.notify('Professional or plan record not found.', 'error');
+                return;
+            }
+
+            pro.pendingSubscription = {
+                planId: plan.id,
+                planName: plan.name,
+                planTier: plan.tierType,
+                durationDays: Number(plan.durationDays || 30),
+                price: Number(plan.price || 5000),
+                txnRef: String(refInput.value || '').trim() || ('TRF-' + Date.now()),
+                receiptImage: receiptBase64 || '',
+                submittedAt: new Date().toLocaleString(),
+                status: 'pending_approval'
+            };
+
+            await ServeHubDB.saveState(state, true);
+            e.target.reset();
+            this.renderAll();
+            this.notify(`Receipt submitted for ${plan.name}! Awaiting Admin approval.`);
+        } catch (err) {
+            console.error('Manual Receipt Submission Error:', err);
+            this.notify('Error submitting receipt: ' + (err.message || 'Check console'), 'error');
+        }
+    },
+
+    getSubscriptionPlans(state) {
+        const plans = state.settings?.subscriptionPlans;
+        if (Array.isArray(plans) && plans.length > 0) return plans;
+        return [
+            {
+                id: 'plan_pro_monthly',
+                name: 'Verified Pro Plan',
+                badge: 'Verified Badge',
+                price: 5000,
+                durationDays: 30,
+                tierType: 'pro',
+                popular: false,
+                features: ['Official Verified Blue Badge', 'Ranked above all Free tier pros', 'Up to 10 itemized services']
+            },
+            {
+                id: 'plan_vip_monthly',
+                name: 'Featured VIP Plan',
+                badge: 'Top Boost',
+                price: 12000,
+                durationDays: 30,
+                tierType: 'featured',
+                popular: true,
+                features: ['Pinned to Row 1 of search results', 'Gold Featured Badge & Highlighted Card', 'Direct WhatsApp button on main card']
+            }
+        ];
     }
-
-    const state = ServeHubDB.getState();
-    const settings = state.settings || {};
-    const plans = this.getSubscriptionPlans(state);
-    const plan = plans.find(p => p.id === planId) || plans[0];
-    if (!plan) return;
-
-    const publicKey = (settings.paystackPublicKey || '').trim();
-    if (!publicKey || publicKey.includes('YOUR_PAYSTACK')) {
-      this.notify('Paystack Public Key not set in Admin Portal. Please use Direct Bank Transfer below.', 'error');
-      return;
-    }
-
-    const handler = PaystackPop.setup({
-      key: publicKey,
-      email: activePro.email || settings.notifyEmail || 'idrisabubakry@gmail.com',
-      amount: Number(plan.price) * 100,
-      currency: 'NGN',
-      ref: 'SHB_SUB_' + Math.floor(100000 + Math.random() * 900000),
-      callback: function(response) {
-        App.completePaystackUpgrade(activePro.id, plan.id, response.reference);
-      },
-      onClose: function() {
-        App.notify('Payment window closed.', 'error');
-      }
-    });
-
-    handler.openIframe();
-  },
-
-  async completePaystackUpgrade(proId, planId, reference) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    const plan = this.getSubscriptionPlans(state).find(p => p.id === planId);
-    if (!pro || !plan) return;
-
-    pro.planId = plan.id;
-    pro.planName = plan.name;
-    pro.planTier = plan.tierType;
-    pro.planWeight = plan.tierType === 'featured' ? 3 : 2;
-    pro.verified = true;
-    pro.planExpiry = new Date(Date.now() + Number(plan.durationDays) * 86400000).toISOString();
-    pro.paymentRef = reference;
-
-    await ServeHubDB.saveState(state, true);
-    this.renderAll();
-    this.notify(`Activated ${plan.name}! Ref: ${reference}`);
-  },
-
-  async submitManualPaymentReceipt(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    const activePro = ServeHubDB.getActivePro();
-    if (!activePro) return;
-
-    const fileInput = document.getElementById('manual-receipt-file');
-    const planSelect = document.getElementById('manual-plan-tier');
-    const refInput = document.getElementById('manual-txn-ref');
-
-    const file = fileInput?.files?.[0];
-    if (!file) {
-      this.notify('Please select a receipt image to upload.', 'error');
-      return;
-    }
-
-    try {
-      const receiptBase64 = await ServeHubDB.compressImage(file, 450, 0.7);
-      const state = ServeHubDB.getState();
-      const pro = state.professionals.find(p => p.id === activePro.id);
-      const plan = this.getSubscriptionPlans(state).find(p => p.id === planSelect?.value) || this.getSubscriptionPlans(state)[0];
-
-      if (!pro || !plan) return;
-
-      pro.pendingSubscription = {
-        planId: plan.id,
-        planName: plan.name,
-        planTier: plan.tierType,
-        durationDays: Number(plan.durationDays || 30),
-        price: Number(plan.price || 5000),
-        txnRef: String(refInput?.value || '').trim() || ('TRF-' + Date.now()),
-        receiptImage: receiptBase64 || '',
-        submittedAt: new Date().toLocaleString(),
-        status: 'pending_approval'
-      };
-
-      await ServeHubDB.saveState(state, true);
-      e.target.reset();
-      this.renderAll();
-      this.notify(`Receipt submitted for ${plan.name}! Awaiting Admin approval.`);
-    } catch (err) {
-      console.error('Manual Receipt Submission Error:', err);
-      this.notify('Error submitting receipt.', 'error');
-    }
-  },
-
-  async completePaystackUpgrade(proId, planType, durationDays, reference) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    if (!pro) return;
-
-    pro.planTier = planType;
-    pro.planWeight = planType === 'featured' ? 3 : 2;
-    pro.verified = true;
-    pro.planExpiry = new Date(Date.now() + durationDays * 86400000).toISOString();
-    pro.paymentRef = reference;
-
-    await ServeHubDB.saveState(state, true);
-    this.renderAll();
-    this.notify(`Subscription activated! Ref: ${reference}`);
-  },
-
-
-  async submitManualPaymentReceipt(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    const activePro = ServeHubDB.getActivePro();
-    if (!activePro) {
-      this.notify('Session expired. Please log in again.', 'error');
-      return;
-    }
-
-    const fileInput = document.getElementById('manual-receipt-file');
-    const planSelect = document.getElementById('manual-plan-tier');
-    const refInput = document.getElementById('manual-txn-ref');
-
-    if (!fileInput || !planSelect || !refInput) {
-      this.notify('Form inputs missing in index.html (#manual-receipt-file, #manual-plan-tier, #manual-txn-ref).', 'error');
-      return;
-    }
-
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) {
-      this.notify('Please select a receipt image to upload.', 'error');
-      return;
-    }
-
-    try {
-      // Compress to max 450px / 0.7 quality so Firestore never rejects the payload size
-      const receiptBase64 = await ServeHubDB.compressImage(file, 450, 0.7);
-      const state = ServeHubDB.getState();
-      const pro = state.professionals.find(p => p.id === activePro.id);
-
-      if (!pro) {
-        this.notify('Professional record not found.', 'error');
-        return;
-      }
-
-      pro.pendingSubscription = {
-        planTier: String(planSelect.value || 'pro'),
-        txnRef: String(refInput.value || '').trim() || ('TRF-' + Date.now()),
-        receiptImage: receiptBase64 || '',
-        submittedAt: new Date().toLocaleString(),
-        status: 'pending_approval'
-      };
-
-      await ServeHubDB.saveState(state, true);
-      e.target.reset();
-      this.renderAll();
-      this.notify('Receipt submitted! Awaiting Admin approval.');
-    } catch (err) {
-      console.error('Manual Receipt Submission Error:', err);
-      this.notify('Error submitting receipt: ' + (err.message || 'Check console'), 'error');
-    }
-  },
-
-getSubscriptionPlans(state) {
-    const plans = state.settings?.subscriptionPlans;
-    if (Array.isArray(plans) && plans.length > 0) return plans;
-    return [
-      {
-        id: 'plan_pro_monthly',
-        name: 'Verified Pro Plan',
-        badge: 'Verified Badge',
-        price: 5000,
-        durationDays: 30,
-        tierType: 'pro',
-        popular: false,
-        features: ['Official Verified Blue Badge', 'Ranked above all Free tier pros', 'Up to 10 itemized services']
-      },
-      {
-        id: 'plan_vip_monthly',
-        name: 'Featured VIP Plan',
-        badge: 'Top Boost',
-        price: 12000,
-        durationDays: 30,
-        tierType: 'featured',
-        popular: true,
-        features: ['Pinned to Row 1 of search results', 'Gold Featured Badge & Highlighted Card', 'Direct WhatsApp button on main card']
-      }
-    ];
-  },
-
 };
 
 // Expose App globally so inline onclick="App.*" attributes always work

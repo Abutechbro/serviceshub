@@ -3,14 +3,16 @@
  * SERVEHUB PRO - ISOLATED ADMIN WORKSPACE CONTROLLER (js/admin.js)
  * Features:
  * - Real-time Firebase Firestore synchronization via ServeHubDB.initRealtimeSync()
- * - Automated Email Alerts (FormSubmit AJAX) on Booking Status & Pro Verification
- * - Login Loop Fix (Direct DOM state transition + persistent localStorage session)
- * - Global window.AdminApp binding for HTML inline event handlers
+ * - Custom Subscription Plan Creator + Live Plan Editor (startEditPlan / saveSubscriptionPlan)
+ * - Manual Bank Transfer Receipt Viewer & 1-Click Approval Workflow
+ * - Automated Email Alerts on Booking Status, Pro Verification & Subscription Approval
+ * - Global window.AdminApp binding
  * ============================================================================
  */
 
 const AdminApp = {
   activeTab: 'bookings',
+  editingPlanId: null,
 
   /* ========================================================================
      1. INITIALIZATION & REAL-TIME FIREBASE SYNC
@@ -32,7 +34,7 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     2. AUTHENTICATION & LOGIN LOOP FIX
+     2. AUTHENTICATION & TAB NAVIGATION
      ======================================================================== */
   checkAuth() {
     const loggedIn = ServeHubDB.isAdminLoggedIn();
@@ -55,7 +57,6 @@ const AdminApp = {
     const pass = (document.getElementById('admin-pass')?.value || '').trim();
 
     if (ServeHubDB.authenticateAdmin(user, pass)) {
-      // Force-persist session flag and immediately transition DOM to prevent login loops
       localStorage.setItem('SERVEHUB_ADMIN_ACTIVE_SESSION', 'ACTIVE');
       document.getElementById('admin-login-screen')?.classList.add('hidden');
       document.getElementById('admin-dashboard-screen')?.classList.remove('hidden');
@@ -77,7 +78,7 @@ const AdminApp = {
 
   switchAdminTab(tabId) {
     this.activeTab = tabId;
-    const tabs = ['bookings', 'pros', 'categories', 'cloud', 'subscriptions'];
+    const tabs = ['bookings', 'pros', 'subscriptions', 'categories', 'cloud'];
 
     tabs.forEach(t => {
       const panel = document.getElementById(`adm-tab-${t}`);
@@ -93,7 +94,7 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     3. EMAIL NOTIFICATION DISPATCHER (FALLBACK-SAFE)
+     3. EMAIL NOTIFICATION DISPATCHER
      ======================================================================== */
   async dispatchEmailNotification(toEmail, subject, payloadData) {
     if (!toEmail || !toEmail.includes('@')) return { ok: false };
@@ -101,27 +102,7 @@ const AdminApp = {
     if (typeof ServeHubDB !== 'undefined' && typeof ServeHubDB.sendEmailAlert === 'function') {
       return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
     }
-
-    try {
-      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          _subject: subject,
-          _template: 'table',
-          _captcha: 'false',
-          Platform: 'ServeHub Pro Admin Control Center',
-          ...payloadData
-        })
-      });
-      return { ok: response.ok };
-    } catch (err) {
-      console.warn('Admin Email Dispatch Warning:', err);
-      return { ok: false };
-    }
+    return { ok: false };
   },
 
   /* ========================================================================
@@ -144,7 +125,6 @@ const AdminApp = {
     if (kpiVerified) kpiVerified.textContent = (state.professionals || []).filter(p => p.verified).length;
     if (kpiGmv) kpiGmv.textContent = ServeHubDB.formatCurrency(gmv);
 
-    // Update Cloud Status Badge
     const cloud = ServeHubDB.getCloudConfig();
     const badge = document.getElementById('cloud-status-badge');
     if (badge) {
@@ -157,74 +137,346 @@ const AdminApp = {
       }
     }
 
-    const binInput = document.getElementById('cloud-bin-id');
-    const keyInput = document.getElementById('cloud-api-key');
-    if (binInput && cloud.binId && document.activeElement !== binInput) binInput.value = cloud.binId;
-    if (keyInput && cloud.apiKey && document.activeElement !== keyInput) keyInput.value = cloud.apiKey;
-
-    const secUser = document.getElementById('sec-admin-user');
-    if (secUser && document.activeElement !== secUser) {
-      secUser.value = state.settings?.adminUsername || 'admin';
-    }
-
-    this.renderBookingsTable(state);
-    this.renderProsTable(state);
-    this.renderCategoriesList(state);
-
-    // Inside renderDashboard() in js/admin.js, add:
-    const subsContainer = document.getElementById('adm-pending-subs-list');
-    if (subsContainer) {
-      const pendingPros = (state.professionals || []).filter(p => p.pendingSubscription && p.pendingSubscription.status === 'pending_approval');
-      if (pendingPros.length === 0) {
-        subsContainer.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No pending subscription receipts.</p>`;
-      } else {
-        subsContainer.innerHTML = pendingPros.map(p => `
-          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <span class="text-xs font-extrabold text-blue-600">${ServeHubDB.escapeHTML(p.businessName)} (@${ServeHubDB.escapeHTML(p.username)})</span>
-              <p class="text-xs font-bold text-slate-800 mt-0.5">Tier: <span class="uppercase text-amber-600">${p.pendingSubscription.planTier}</span> &bull; Ref: <span class="font-mono">${ServeHubDB.escapeHTML(p.pendingSubscription.txnRef)}</span></p>
-              <p class="text-[11px] text-slate-500">Submitted: ${p.pendingSubscription.submittedAt}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <a href="${p.pendingSubscription.receiptImage}" target="_blank" class="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-800 text-xs font-bold">View Receipt</a>
-              <button onclick="AdminApp.approveSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">Approve</button>
-              <button onclick="AdminApp.rejectSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold">Reject</button>
-            </div>
-          </div>
-        `).join('');
-      }
-
-      const s = state.settings || {};
-    const setVal = (id, val) => {
-      const el = document.getElementById(id);
-      if (el && document.activeElement !== el) el.value = val;
-    };
-    setVal('adm-bank-name', s.bankName || 'Guaranty Trust Bank (GTB)');
-    setVal('adm-bank-num', s.bankAccountNumber || '0123456789');
-    setVal('adm-bank-holder', s.bankAccountName || 'ServeHub Pro Technologies');
-    setVal('adm-paystack-key', s.paystackPublicKey || 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY');
-
-    this.renderSubscriptionPlans(state);
-
-    }
-
-    // Populate Subscription Pricing & Bank Inputs in Admin
     const s = state.settings || {};
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (el && document.activeElement !== el) el.value = val;
     };
-    setVal('adm-price-pro', s.proPlanPrice ?? 5000);
-    setVal('adm-price-featured', s.featuredPlanPrice ?? 12000);
-    setVal('adm-plan-days', s.planDurationDays ?? 30);
     setVal('adm-bank-name', s.bankName || 'Guaranty Trust Bank (GTB)');
     setVal('adm-bank-num', s.bankAccountNumber || '0123456789');
     setVal('adm-bank-holder', s.bankAccountName || 'ServeHub Pro Technologies');
     setVal('adm-paystack-key', s.paystackPublicKey || 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY');
+    setVal('sec-admin-user', s.adminUsername || 'admin');
+
+    this.renderBookingsTable(state);
+    this.renderProsTable(state);
+    this.renderSubscriptionPlans(state);
+    this.renderPendingReceipts(state);
+    this.renderCategoriesList(state);
   },
 
   /* ========================================================================
-     5. MASTER BOOKINGS PIPELINE & EMAIL ALERTS
+     5. CUSTOM SUBSCRIPTION PLAN CREATOR & LIVE EDITOR
+     ======================================================================== */
+  getSubscriptionPlans(state) {
+    if (!state.settings) state.settings = {};
+    if (!Array.isArray(state.settings.subscriptionPlans) || state.settings.subscriptionPlans.length === 0) {
+      state.settings.subscriptionPlans = [
+        {
+          id: 'plan_pro_monthly',
+          name: 'Verified Pro Plan',
+          badge: 'Verified Badge',
+          price: 5000,
+          durationDays: 30,
+          tierType: 'pro',
+          popular: false,
+          features: ['Official Verified Blue Badge', 'Ranked above all Free tier pros', 'Up to 10 itemized services']
+        },
+        {
+          id: 'plan_vip_monthly',
+          name: 'Featured VIP Plan',
+          badge: 'Top Boost',
+          price: 12000,
+          durationDays: 30,
+          tierType: 'featured',
+          popular: true,
+          features: ['Pinned to Row 1 of search results', 'Gold Featured Badge & Highlighted Card', 'Direct WhatsApp button on main card']
+        }
+      ];
+    }
+    return state.settings.subscriptionPlans;
+  },
+
+  renderSubscriptionPlans(state) {
+    const container = document.getElementById('adm-plans-list');
+    if (!container) return;
+
+    const plans = this.getSubscriptionPlans(state);
+    container.innerHTML = plans.map(plan => {
+      const isEditing = this.editingPlanId === plan.id;
+      return `
+        <div class="p-4 rounded-2xl border-2 ${
+          isEditing
+            ? 'border-blue-600 bg-blue-50/30'
+            : plan.tierType === 'featured'
+            ? 'border-amber-300 bg-amber-50/40'
+            : 'border-slate-200 bg-slate-50'
+        } flex items-start justify-between gap-3 transition">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                plan.tierType === 'featured' ? 'bg-amber-200 text-amber-900' : 'bg-blue-100 text-blue-800'
+              }">
+                ${ServeHubDB.escapeHTML(plan.badge)}
+              </span>
+              ${plan.popular ? '<span class="px-2 py-0.5 rounded bg-slate-900 text-amber-400 text-[10px] font-black uppercase">Most Popular</span>' : ''}
+              ${isEditing ? '<span class="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">Editing Now</span>' : ''}
+            </div>
+            <h5 class="text-sm font-extrabold text-slate-900 mt-1">${ServeHubDB.escapeHTML(plan.name)}</h5>
+            <p class="text-xs font-extrabold text-blue-600 mt-0.5">
+              ${ServeHubDB.formatCurrency(plan.price)} <span class="text-slate-500 font-normal">/ ${plan.durationDays} days</span>
+            </p>
+            <ul class="mt-2 space-y-1 text-[11px] text-slate-600">
+              ${(plan.features || []).map(f => `<li>• ${ServeHubDB.escapeHTML(f)}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="AdminApp.startEditPlan('${plan.id}')" class="px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold" title="Edit Plan">
+              <i class="fa-solid fa-pen-to-square mr-1"></i>Edit
+            </button>
+            <button onclick="AdminApp.deleteSubscriptionPlan('${plan.id}')" class="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold" title="Delete Plan">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  startEditPlan(planId) {
+    const state = ServeHubDB.getState();
+    const plans = this.getSubscriptionPlans(state);
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    this.editingPlanId = plan.id;
+
+    document.getElementById('new-plan-name').value = plan.name || '';
+    document.getElementById('new-plan-badge').value = plan.badge || '';
+    document.getElementById('new-plan-tier').value = plan.tierType || 'pro';
+    document.getElementById('new-plan-price').value = plan.price || 5000;
+    document.getElementById('new-plan-days').value = plan.durationDays || 30;
+    document.getElementById('new-plan-popular').checked = Boolean(plan.popular);
+    document.getElementById('new-plan-features').value = (plan.features || []).join(', ');
+
+    const heading = document.getElementById('plan-form-heading');
+    if (heading) {
+      heading.innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500 mr-1.5"></i>Editing Plan: ${ServeHubDB.escapeHTML(plan.name)}`;
+    }
+
+    const submitBtn = document.getElementById('plan-submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = 'Save Changes to Plan';
+      submitBtn.className = 'px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold transition shadow-sm';
+    }
+
+    document.getElementById('cancel-edit-plan-btn')?.classList.remove('hidden');
+    this.renderSubscriptionPlans(state);
+    document.getElementById('adm-plan-creator-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  },
+
+  cancelEditPlan() {
+    this.editingPlanId = null;
+    document.getElementById('adm-plan-creator-form')?.reset();
+
+    const heading = document.getElementById('plan-form-heading');
+    if (heading) {
+      heading.innerHTML = `<i class="fa-solid fa-plus-circle text-blue-600 mr-1.5"></i>Create New Subscription Plan`;
+    }
+
+    const submitBtn = document.getElementById('plan-submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = '+ Publish New Pricing Plan';
+      submitBtn.className = 'px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition shadow-sm';
+    }
+
+    document.getElementById('cancel-edit-plan-btn')?.classList.add('hidden');
+    this.renderSubscriptionPlans(ServeHubDB.getState());
+  },
+
+  async saveSubscriptionPlan(e) {
+    e.preventDefault();
+    const state = ServeHubDB.getState();
+    const plans = this.getSubscriptionPlans(state);
+
+    const name = document.getElementById('new-plan-name').value.trim();
+    const badge = document.getElementById('new-plan-badge').value.trim();
+    const tierType = document.getElementById('new-plan-tier').value;
+    const price = Number(document.getElementById('new-plan-price').value || 5000);
+    const durationDays = Number(document.getElementById('new-plan-days').value || 30);
+    const popular = document.getElementById('new-plan-popular').checked;
+    const featuresRaw = document.getElementById('new-plan-features').value;
+    const features = featuresRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+    if (this.editingPlanId) {
+      const idx = plans.findIndex(p => p.id === this.editingPlanId);
+      if (idx !== -1) {
+        plans[idx] = {
+          ...plans[idx],
+          name,
+          badge,
+          tierType,
+          price,
+          durationDays,
+          popular,
+          features: features.length ? features : ['Verified Boost & Priority Placement']
+        };
+      }
+      await ServeHubDB.saveState(state, true);
+      this.cancelEditPlan();
+      this.renderDashboard();
+      this.notify(`Updated plan: "${name}"!`);
+    } else {
+      plans.push({
+        id: 'plan_' + Date.now(),
+        name,
+        badge,
+        price,
+        durationDays,
+        tierType,
+        popular,
+        features: features.length ? features : ['Verified Boost & Priority Placement']
+      });
+      await ServeHubDB.saveState(state, true);
+      e.target.reset();
+      this.renderDashboard();
+      this.notify(`Created new plan: "${name}"!`);
+    }
+  },
+
+  async deleteSubscriptionPlan(planId) {
+    const state = ServeHubDB.getState();
+    const plans = this.getSubscriptionPlans(state);
+    if (plans.length <= 1) {
+      this.notify('You must keep at least one active subscription plan.', 'error');
+      return;
+    }
+    if (this.editingPlanId === planId) {
+      this.cancelEditPlan();
+    }
+    state.settings.subscriptionPlans = plans.filter(p => p.id !== planId);
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify('Subscription plan deleted.');
+  },
+
+  async saveGatewaySettings(e) {
+    e.preventDefault();
+    const state = ServeHubDB.getState();
+    if (!state.settings) state.settings = {};
+    state.settings.bankName = document.getElementById('adm-bank-name').value.trim();
+    state.settings.bankAccountNumber = document.getElementById('adm-bank-num').value.trim();
+    state.settings.bankAccountName = document.getElementById('adm-bank-holder').value.trim();
+    state.settings.paystackPublicKey = document.getElementById('adm-paystack-key').value.trim();
+
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify('Bank & Paystack settings updated!');
+  },
+
+  /* ========================================================================
+     6. PENDING MANUAL RECEIPT APPROVALS
+     ======================================================================== */
+  renderPendingReceipts(state) {
+    const subsContainer = document.getElementById('adm-pending-subs-list');
+    if (!subsContainer) return;
+
+    const pendingPros = (state.professionals || []).filter(
+      p => p.pendingSubscription && p.pendingSubscription.status === 'pending_approval'
+    );
+
+    if (pendingPros.length === 0) {
+      subsContainer.innerHTML = `<p class="text-xs text-slate-400 py-6 text-center">No pending subscription receipts.</p>`;
+      return;
+    }
+
+    subsContainer.innerHTML = pendingPros.map(p => `
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-extrabold text-blue-600">${ServeHubDB.escapeHTML(p.businessName)} (@${ServeHubDB.escapeHTML(p.username)})</span>
+          <p class="text-xs font-bold text-slate-800 mt-0.5">
+            Plan: <span class="text-amber-600">${ServeHubDB.escapeHTML(p.pendingSubscription.planName || p.pendingSubscription.planTier.toUpperCase())}</span> &bull;
+            Ref: <span class="font-mono">${ServeHubDB.escapeHTML(p.pendingSubscription.txnRef)}</span>
+          </p>
+          <p class="text-[11px] text-slate-500">Submitted: ${ServeHubDB.escapeHTML(p.pendingSubscription.submittedAt)}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="AdminApp.viewReceiptImage('${p.id}')" class="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold">
+            View Receipt
+          </button>
+          <button onclick="AdminApp.approveSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+            Approve
+          </button>
+          <button onclick="AdminApp.rejectSubscription('${p.id}')" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">
+            Reject
+          </button>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  viewReceiptImage(proId) {
+    const state = ServeHubDB.getState();
+    const pro = (state.professionals || []).find(p => p.id === proId);
+    const imgData = pro?.pendingSubscription?.receiptImage;
+    if (!imgData) {
+      this.notify('No receipt image found.', 'error');
+      return;
+    }
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(`
+        <html>
+          <head><title>Receipt - ${ServeHubDB.escapeHTML(pro.businessName)}</title></head>
+          <body style="margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;min-height:100vh;">
+            <img src="${imgData}" style="max-width:95%;max-height:95vh;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,0.5);" />
+          </body>
+        </html>
+      `);
+      win.document.close();
+    }
+  },
+
+  async approveSubscription(proId) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    if (!pro || !pro.pendingSubscription) return;
+
+    const sub = pro.pendingSubscription;
+    const days = Number(sub.durationDays || 30);
+    const tier = sub.planTier || 'pro';
+
+    pro.planId = sub.planId || '';
+    pro.planName = sub.planName || (tier === 'featured' ? 'Featured VIP Plan' : 'Verified Pro Plan');
+    pro.planTier = tier;
+    pro.planWeight = tier === 'featured' ? 3 : 2;
+    pro.verified = true;
+    pro.planExpiry = new Date(Date.now() + days * 86400000).toISOString();
+    pro.pendingSubscription.status = 'approved';
+
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify(`Approved ${pro.planName} (${days} days) for ${pro.businessName}!`);
+
+    if (pro.email) {
+      await this.dispatchEmailNotification(
+        pro.email,
+        `🎉 Your ${pro.planName} Subscription is Now Active!`,
+        {
+          Booking_Reference: sub.txnRef || 'SUB-APPROVED',
+          Service_Booked: pro.planName,
+          Client_Name: pro.businessName,
+          Estimated_Total: ServeHubDB.formatCurrency(sub.price || 0),
+          Updated_Status: `Active until ${pro.planExpiry.split('T')[0]}`
+        }
+      );
+    }
+  },
+
+  async rejectSubscription(proId) {
+    const state = ServeHubDB.getState();
+    const pro = state.professionals.find(p => p.id === proId);
+    if (!pro) return;
+
+    delete pro.pendingSubscription;
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify('Subscription request rejected.');
+  },
+
+  /* ========================================================================
+     7. MASTER BOOKINGS PIPELINE
      ======================================================================== */
   renderBookingsTable(state) {
     const tbody = document.getElementById('adm-bookings-tbody');
@@ -271,11 +523,10 @@ const AdminApp = {
     if (!b) return;
 
     b.status = status;
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify(`Booking ${bookingId} updated to ${status}. Notifying client...`);
 
-    // Dispatch live job status email to customer
     if (b.customerEmail) {
       await this.dispatchEmailNotification(
         b.customerEmail,
@@ -297,13 +548,13 @@ const AdminApp = {
     if (!confirm(`Delete booking ${bookingId}?`)) return;
     const state = ServeHubDB.getState();
     state.bookings = state.bookings.filter(b => b.id !== bookingId);
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify('Booking deleted.');
   },
 
   /* ========================================================================
-     6. PROFESSIONALS VERIFICATION, MODERATION & EMAIL ALERTS
+     8. PROFESSIONALS VERIFICATION & MODERATION
      ======================================================================== */
   renderProsTable(state) {
     const tbody = document.getElementById('adm-pros-tbody');
@@ -314,14 +565,35 @@ const AdminApp = {
       return;
     }
 
+    const now = Date.now();
+
     tbody.innerHTML = state.professionals.map(p => {
+      // Check active subscription status
+      const isPlanActive = p.planExpiry && new Date(p.planExpiry).getTime() > now;
+      let planBadgeHTML = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Free Tier</span>`;
+
+      if (isPlanActive) {
+        const planLabel = p.planName || (p.planTier === 'featured' ? 'Featured VIP' : 'Verified Pro');
+        const expiryDate = p.planExpiry.split('T')[0];
+        planBadgeHTML = `
+          <div class="mt-1">
+            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+              p.planTier === 'featured' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+            }">
+              ${ServeHubDB.escapeHTML(planLabel)}
+            </span>
+            <span class="block text-[10px] text-slate-500 mt-0.5">Exp: ${expiryDate}</span>
+          </div>
+        `;
+      }
+
       const pendingSub = p.pendingSubscription;
       const subApprovalHTML = pendingSub && pendingSub.status === 'pending_approval' ? `
         <div class="mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px]">
-          <span class="font-extrabold text-amber-800">Pending ${pendingSub.planTier.toUpperCase()} Request</span>
+          <span class="font-extrabold text-amber-800">Pending ${ServeHubDB.escapeHTML(pendingSub.planName || pendingSub.planTier.toUpperCase())}</span>
           <p class="text-slate-600 font-mono">Ref: ${ServeHubDB.escapeHTML(pendingSub.txnRef)}</p>
           <div class="mt-1 flex items-center gap-2">
-            <a href="${pendingSub.receiptImage}" target="_blank" class="text-blue-600 font-bold underline">View Receipt</a>
+            <button onclick="AdminApp.viewReceiptImage('${p.id}')" class="text-blue-600 font-bold underline">View Receipt</button>
             <button onclick="AdminApp.approveSubscription('${p.id}')" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold">Approve</button>
             <button onclick="AdminApp.rejectSubscription('${p.id}')" class="px-2 py-0.5 rounded bg-rose-600 text-white font-bold">Reject</button>
           </div>
@@ -351,6 +623,7 @@ const AdminApp = {
             }">
               ${p.verified ? '✓ Verified Pro' : 'Unverified (Click to Verify)'}
             </button>
+            ${planBadgeHTML}
           </td>
           <td class="py-3 px-3 text-right">
             <button onclick="AdminApp.deletePro('${p.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold" title="Remove Professional">
@@ -368,39 +641,22 @@ const AdminApp = {
     if (!pro) return;
 
     pro.verified = !pro.verified;
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify(`${pro.businessName} verification set to ${pro.verified}`);
-
-    // Email the professional when their badge status changes
-    if (pro.email) {
-      await this.dispatchEmailNotification(
-        pro.email,
-        pro.verified
-          ? `🎉 Your Business is Now Verified on ServeHub Pro!`
-          : `⚠️ Verification Status Update - ${pro.businessName}`,
-        {
-          Business_Name: pro.businessName,
-          Username: `@${pro.username}`,
-          Verification_Status: pro.verified ? 'Verified Badge Active' : 'Unverified / Under Review',
-          Category: pro.category,
-          Service_Area: pro.location
-        }
-      );
-    }
   },
 
   async deletePro(proId) {
     if (!confirm('Remove this professional from the platform?')) return;
     const state = ServeHubDB.getState();
     state.professionals = state.professionals.filter(p => p.id !== proId);
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify('Professional removed.');
   },
 
   /* ========================================================================
-     7. CATEGORIES, CLOUD SYNC & SECURITY SETTINGS
+     9. CATEGORIES, CLOUD SYNC & SECURITY SETTINGS
      ======================================================================== */
   renderCategoriesList(state) {
     const list = document.getElementById('adm-categories-list');
@@ -421,7 +677,7 @@ const AdminApp = {
     const state = ServeHubDB.getState();
 
     state.categories.push({ id: 'cat_' + Date.now(), name, icon, count: 0 });
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     e.target.reset();
     this.renderDashboard();
     this.notify(`Category "${name}" added.`);
@@ -430,14 +686,9 @@ const AdminApp = {
   async deleteCategory(catId) {
     const state = ServeHubDB.getState();
     state.categories = state.categories.filter(c => c.id !== catId);
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify('Category removed.');
-  },
-
-  saveCloudSettings(e) {
-    e.preventDefault();
-    this.notify('Firebase credentials are configured directly inside js/db.js (FIREBASE_CONFIG).');
   },
 
   async updateAdminCredentials(e) {
@@ -445,7 +696,7 @@ const AdminApp = {
     const state = ServeHubDB.getState();
     state.settings.adminUsername = document.getElementById('sec-admin-user').value.trim();
     state.settings.adminPassword = document.getElementById('sec-admin-pass').value.trim();
-    await ServeHubDB.saveState(state);
+    await ServeHubDB.saveState(state, true);
     document.getElementById('sec-admin-pass').value = '';
     this.notify('Admin login credentials updated globally!');
   },
@@ -481,7 +732,7 @@ const AdminApp = {
       try {
         const parsed = JSON.parse(ev.target.result);
         if (parsed.professionals && parsed.bookings) {
-          await ServeHubDB.saveState(parsed);
+          await ServeHubDB.saveState(parsed, true);
           this.renderDashboard();
           this.notify('Database backup restored and synced to Firebase!');
         }
@@ -500,7 +751,7 @@ const AdminApp = {
   },
 
   /* ========================================================================
-     8. TOAST NOTIFICATIONS
+     10. TOAST NOTIFICATIONS
      ======================================================================== */
   notify(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -510,224 +761,9 @@ const AdminApp = {
     toast.innerHTML = `<span>${ServeHubDB.escapeHTML(message)}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3500);
-  },
-
-  async approveSubscription(proId) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    if (!pro || !pro.pendingSubscription) return;
-
-    const plan = pro.pendingSubscription.planTier;
-    pro.planTier = plan;
-    pro.planWeight = plan === 'featured' ? 3 : 2;
-    pro.verified = true;
-    pro.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString(); // 30 Days validity
-    pro.pendingSubscription.status = 'approved';
-
-    await ServeHubDB.saveState(state);
-    this.renderDashboard();
-    this.notify(`Approved ${plan.toUpperCase()} subscription for ${pro.businessName}!`);
-
-    if (pro.email) {
-      await this.dispatchEmailNotification(
-        pro.email,
-        `🎉 Your ${plan.toUpperCase()} Subscription Has Been Approved!`,
-        {
-          Business_Name: pro.businessName,
-          Activated_Plan: plan.toUpperCase(),
-          Valid_Until: pro.planExpiry.split('T')[0]
-        }
-      );
-    }
-  },
-
-  async rejectSubscription(proId) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    if (!pro) return;
-
-    delete pro.pendingSubscription;
-    await ServeHubDB.saveState(state);
-    this.renderDashboard();
-    this.notify('Subscription request rejected.');
-  },
-
-  async saveSubscriptionSettings(e) {
-    e.preventDefault();
-    const state = ServeHubDB.getState();
-    if (!state.settings) state.settings = {};
-
-    state.settings.proPlanPrice = Number(document.getElementById('adm-price-pro').value || 5000);
-    state.settings.featuredPlanPrice = Number(document.getElementById('adm-price-featured').value || 12000);
-    state.settings.planDurationDays = Number(document.getElementById('adm-plan-days').value || 30);
-    state.settings.bankName = document.getElementById('adm-bank-name').value.trim();
-    state.settings.bankAccountNumber = document.getElementById('adm-bank-num').value.trim();
-    state.settings.bankAccountName = document.getElementById('adm-bank-holder').value.trim();
-    state.settings.paystackPublicKey = document.getElementById('adm-paystack-key').value.trim();
-
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify('Subscription prices and payment settings updated globally!');
-  },
-
-  async approveSubscription(proId) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    if (!pro || !pro.pendingSubscription) return;
-
-    const days = Number(state.settings?.planDurationDays || 30);
-    const plan = pro.pendingSubscription.planTier;
-    pro.planTier = plan;
-    pro.planWeight = plan === 'featured' ? 3 : 2;
-    pro.verified = true;
-    pro.planExpiry = new Date(Date.now() + days * 86400000).toISOString();
-    pro.pendingSubscription.status = 'approved';
-
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify(`Approved ${plan.toUpperCase()} subscription for ${pro.businessName}!`);
-  },
-
-// Subcription
-  getSubscriptionPlans(state) {
-    if (!state.settings) state.settings = {};
-    if (!Array.isArray(state.settings.subscriptionPlans) || state.settings.subscriptionPlans.length === 0) {
-      state.settings.subscriptionPlans = [
-        {
-          id: 'plan_pro_monthly',
-          name: 'Verified Pro Plan',
-          badge: 'Verified Badge',
-          price: 5000,
-          durationDays: 30,
-          tierType: 'pro',
-          popular: false,
-          features: ['Official Verified Blue Badge', 'Ranked above all Free tier pros', 'Up to 10 itemized services']
-        },
-        {
-          id: 'plan_vip_monthly',
-          name: 'Featured VIP Plan',
-          badge: 'Top Boost',
-          price: 12000,
-          durationDays: 30,
-          tierType: 'featured',
-          popular: true,
-          features: ['Pinned to Row 1 of search results', 'Gold Featured Badge & Highlighted Card', 'Direct WhatsApp button on main card']
-        }
-      ];
-    }
-    return state.settings.subscriptionPlans;
-  },
-
-  renderSubscriptionPlans(state) {
-    const container = document.getElementById('adm-plans-list');
-    if (!container) return;
-
-    const plans = this.getSubscriptionPlans(state);
-    container.innerHTML = plans.map(plan => `
-      <div class="p-4 rounded-2xl border ${plan.tierType === 'featured' ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200 bg-slate-50'} flex items-start justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${plan.tierType === 'featured' ? 'bg-amber-200 text-amber-900' : 'bg-blue-100 text-blue-800'}">
-              ${ServeHubDB.escapeHTML(plan.badge)}
-            </span>
-            ${plan.popular ? '<span class="px-2 py-0.5 rounded bg-slate-900 text-amber-400 text-[10px] font-black uppercase">Most Popular</span>' : ''}
-          </div>
-          <h5 class="text-sm font-extrabold text-slate-900 mt-1">${ServeHubDB.escapeHTML(plan.name)}</h5>
-          <p class="text-xs font-extrabold text-blue-600 mt-0.5">${ServeHubDB.formatCurrency(plan.price)} <span class="text-slate-500 font-normal">/ ${plan.durationDays} days</span></p>
-          <ul class="mt-2 space-y-1 text-[11px] text-slate-600">
-            ${(plan.features || []).map(f => `<li>• ${ServeHubDB.escapeHTML(f)}</li>`).join('')}
-          </ul>
-        </div>
-        <button onclick="AdminApp.deleteSubscriptionPlan('${plan.id}')" class="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold shrink-0" title="Delete Plan">
-          <i class="fa-solid fa-trash-can"></i>
-        </button>
-      </div>
-    `).join('');
-  },
-
-  async createSubscriptionPlan(e) {
-    e.preventDefault();
-    const state = ServeHubDB.getState();
-    const plans = this.getSubscriptionPlans(state);
-
-    const name = document.getElementById('new-plan-name').value.trim();
-    const badge = document.getElementById('new-plan-badge').value.trim();
-    const tierType = document.getElementById('new-plan-tier').value;
-    const price = Number(document.getElementById('new-plan-price').value || 5000);
-    const durationDays = Number(document.getElementById('new-plan-days').value || 30);
-    const popular = document.getElementById('new-plan-popular').checked;
-    const featuresRaw = document.getElementById('new-plan-features').value;
-    const features = featuresRaw.split(',').map(s => s.trim()).filter(Boolean);
-
-    plans.push({
-      id: 'plan_' + Date.now(),
-      name,
-      badge,
-      price,
-      durationDays,
-      tierType,
-      popular,
-      features: features.length ? features : ['Verified Boost & Priority Placement']
-    });
-
-    await ServeHubDB.saveState(state, true);
-    e.target.reset();
-    this.renderDashboard();
-    this.notify(`Created new plan: "${name}"!`);
-  },
-
-  async deleteSubscriptionPlan(planId) {
-    const state = ServeHubDB.getState();
-    const plans = this.getSubscriptionPlans(state);
-    if (plans.length <= 1) {
-      this.notify('You must keep at least one active subscription plan.', 'error');
-      return;
-    }
-    state.settings.subscriptionPlans = plans.filter(p => p.id !== planId);
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify('Subscription plan deleted.');
-  },
-
-  async saveGatewaySettings(e) {
-    e.preventDefault();
-    const state = ServeHubDB.getState();
-    if (!state.settings) state.settings = {};
-    state.settings.bankName = document.getElementById('adm-bank-name').value.trim();
-    state.settings.bankAccountNumber = document.getElementById('adm-bank-num').value.trim();
-    state.settings.bankAccountName = document.getElementById('adm-bank-holder').value.trim();
-    state.settings.paystackPublicKey = document.getElementById('adm-paystack-key').value.trim();
-
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify('Bank & Paystack settings updated!');
-  },
-
-  async approveSubscription(proId) {
-    const state = ServeHubDB.getState();
-    const pro = state.professionals.find(p => p.id === proId);
-    if (!pro || !pro.pendingSubscription) return;
-
-    const sub = pro.pendingSubscription;
-    const days = Number(sub.durationDays || 30);
-    const tier = sub.planTier || 'pro';
-
-    pro.planId = sub.planId || '';
-    pro.planName = sub.planName || (tier === 'featured' ? 'Featured VIP Plan' : 'Verified Pro Plan');
-    pro.planTier = tier;
-    pro.planWeight = tier === 'featured' ? 3 : 2;
-    pro.verified = true;
-    pro.planExpiry = new Date(Date.now() + days * 86400000).toISOString();
-    pro.pendingSubscription.status = 'approved';
-
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify(`Approved ${pro.planName} (${days} days) for ${pro.businessName}!`);
-  },
-
+  }
 };
 
-// Expose AdminApp globally so inline onclick="AdminApp.*" handlers work with ES modules
 window.AdminApp = AdminApp;
 
 document.addEventListener('DOMContentLoaded', () => AdminApp.init());

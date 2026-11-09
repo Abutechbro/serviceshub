@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,359 +8,395 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <!-- Shared Stylesheet -->
+  <!-- EmailJS SDK -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script type="text/javascript">
+    (function() {
+      if (typeof emailjs !== 'undefined') {
+        emailjs.init({
+          publicKey: "uLPpcwCsA9zbz3qc6" // Replace with your EmailJS Public Key
+        });
+      }
+    })();
+  </script>
+  <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
+<body class="min-h-screen bg-slate-100 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white">
 
   <!-- ========================================================================
-       1. ADMIN AUTHENTICATION GATEWAY (SHOWN ONLY WHEN LOGGED OUT)
-       Zero public marketplace links shown here.
+       1. ADMIN LOGIN GATEWAY SCREEN
        ======================================================================== -->
-  <div id="admin-login-screen" class="flex-1 flex items-center justify-center p-4 bg-slate-950">
-    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-8 animate-fade-in">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="w-11 h-11 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center text-lg shadow-md">
-          <i class="fa-solid fa-shield-halved"></i>
+  <main id="admin-login-screen" class="flex-1 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-200 animate-fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center text-lg shadow-md">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-extrabold text-slate-900">ServeHub <span class="text-blue-600">Admin</span></h1>
+            <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Control Center</p>
+          </div>
         </div>
-        <div>
-          <h1 class="text-xl font-extrabold text-slate-900">Admin Control Center</h1>
-          <p class="text-xs text-slate-500">Restricted Authorized Access Only</p>
-        </div>
+        <a href="index.html" class="text-xs font-bold text-slate-500 hover:text-blue-600 transition">
+          &larr; Public Site
+        </a>
       </div>
 
       <form onsubmit="AdminApp.handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Admin Username</label>
-          <input id="admin-user" type="text" required value="admin" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600" />
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Admin Username</label>
+          <input
+            id="admin-user"
+            type="text"
+            required
+            value="admin"
+            placeholder="admin"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+          />
         </div>
+
         <div>
-          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Admin Password</label>
-          <input id="admin-pass" type="password" required placeholder="Default: admin123" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600" />
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Admin Password</label>
+          <input
+            id="admin-pass"
+            type="password"
+            required
+            value="admin123"
+            placeholder="••••••••"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
+          />
         </div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-extrabold text-sm transition shadow-lg">
-          Authenticate & Enter Admin Panel
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg">
+          Unlock Admin Workspace <i class="fa-solid fa-arrow-right ml-1.5"></i>
         </button>
       </form>
-      <p class="mt-4 text-[11px] text-center text-slate-400">Default Credentials: <code>admin</code> / <code>admin123</code></p>
     </div>
-  </div>
+  </main>
 
   <!-- ========================================================================
-       2. ISOLATED ADMIN WORKSPACE (SHOWN ONLY WHEN ADMIN IS LOGGED IN)
+       2. ADMIN DASHBOARD WORKSPACE
        ======================================================================== -->
   <div id="admin-dashboard-screen" class="hidden flex-1 flex flex-col">
 
-    <!-- Dedicated Admin Header & Role-Specific Navigation -->
-    <header class="bg-slate-900 text-white sticky top-0 z-30 border-b border-slate-800">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <!-- Top Admin Header -->
+    <header class="bg-slate-950 text-white border-b border-slate-800 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-amber-400 text-slate-900 flex items-center justify-center font-extrabold">
+          <div class="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-extrabold">
             <i class="fa-solid fa-shield-halved"></i>
           </div>
           <div>
-            <span class="font-extrabold text-base tracking-tight">ServeHub <span class="text-amber-400">Admin</span></span>
-            <span id="cloud-status-badge" class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">Local Mode</span>
+            <div class="flex items-center">
+              <span class="font-extrabold text-base tracking-tight">ServeHub Admin</span>
+              <span id="cloud-status-badge" class="ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300">Checking Sync...</span>
+            </div>
           </div>
         </div>
 
-        <!-- Admin Workspace Navigation Tabs -->
-        <nav class="hidden md:flex items-center gap-1 bg-slate-800 p-1 rounded-xl">
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button onclick="AdminApp.switchAdminTab('bookings')" id="anav-bookings" class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-amber-400 text-slate-950 transition">
-            <i class="fa-solid fa-calendar-check mr-1"></i>Bookings Pipeline
+            <i class="fa-solid fa-calendar-check mr-1"></i>Bookings
           </button>
           <button onclick="AdminApp.switchAdminTab('pros')" id="anav-pros" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
-            <i class="fa-solid fa-user-check mr-1"></i>Verify Pros
+            <i class="fa-solid fa-user-check mr-1"></i>Professionals
+          </button>
+          <button onclick="AdminApp.switchAdminTab('subscriptions')" id="anav-subscriptions" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
+            <i class="fa-solid fa-crown mr-1"></i>Pricing & Subscriptions
           </button>
           <button onclick="AdminApp.switchAdminTab('categories')" id="anav-categories" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
             <i class="fa-solid fa-layer-group mr-1"></i>Categories
           </button>
           <button onclick="AdminApp.switchAdminTab('cloud')" id="anav-cloud" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
-            <i class="fa-solid fa-cloud mr-1"></i>Cloud & Security
+            <i class="fa-solid fa-cloud-arrow-up mr-1"></i>Cloud & Security
           </button>
-
-          <!-- Add inside admin navigation bar -->
-<button onclick="AdminApp.switchAdminTab('subscriptions')" id="anav-subscriptions" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
-  Pending Subscriptions
-</button>
         </nav>
 
-        <div class="flex items-center gap-2.5">
-          <button onclick="AdminApp.handleLogout()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-extrabold transition">
-            <i class="fa-solid fa-power-off mr-1"></i> Logout
+        <div class="flex items-center gap-2">
+          <a href="index.html" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Marketplace
+          </a>
+          <button onclick="AdminApp.handleLogout()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition">
+            <i class="fa-solid fa-power-off mr-1"></i>Logout
           </button>
         </div>
       </div>
 
-      <!-- Mobile Admin Switcher -->
-      <div class="flex md:hidden border-t border-slate-800 bg-slate-950 px-2 py-1.5 justify-around text-xs font-bold">
-        <button onclick="AdminApp.switchAdminTab('bookings')" class="text-amber-400 py-1">Bookings</button>
-        <button onclick="AdminApp.switchAdminTab('pros')" class="text-slate-400 py-1">Verify Pros</button>
-        <button onclick="AdminApp.switchAdminTab('categories')" class="text-slate-400 py-1">Categories</button>
-        <button onclick="AdminApp.switchAdminTab('cloud')" class="text-slate-400 py-1">Cloud/Security</button>
+      <!-- Mobile Tab Bar -->
+      <div class="flex md:hidden border-t border-slate-800 bg-slate-900 px-2 py-1.5 overflow-x-auto gap-1">
+        <button onclick="AdminApp.switchAdminTab('bookings')" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-200 shrink-0">Bookings</button>
+        <button onclick="AdminApp.switchAdminTab('pros')" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-200 shrink-0">Pros</button>
+        <button onclick="AdminApp.switchAdminTab('subscriptions')" class="px-3 py-1 rounded-lg text-xs font-bold text-amber-400 shrink-0">Pricing & Subs</button>
+        <button onclick="AdminApp.switchAdminTab('categories')" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-200 shrink-0">Categories</button>
+        <button onclick="AdminApp.switchAdminTab('cloud')" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-200 shrink-0">Cloud</button>
       </div>
     </header>
 
-    <!-- Main Admin Workspace Body -->
-    <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex-1">
+    <!-- Main Content Container -->
+    <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 flex-1">
 
-      <!-- Executive KPI Row -->
+      <!-- KPI Overview Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase">Total Bookings</span>
+          <span class="text-[11px] font-bold uppercase text-slate-400">Total Bookings</span>
           <p id="adm-kpi-bookings" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase">Registered Pros</span>
+          <span class="text-[11px] font-bold uppercase text-slate-400">Registered Pros</span>
           <p id="adm-kpi-pros" class="text-2xl font-extrabold text-blue-600 mt-1">0</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase">Verified Pros</span>
+          <span class="text-[11px] font-bold uppercase text-slate-400">Verified Pros</span>
           <p id="adm-kpi-verified" class="text-2xl font-extrabold text-emerald-600 mt-1">0</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase">Platform GMV (Est.)</span>
-          <p id="adm-kpi-gmv" class="text-2xl font-extrabold text-indigo-600 mt-1">₦0</p>
+          <span class="text-[11px] font-bold uppercase text-slate-400">Platform GMV</span>
+          <p id="adm-kpi-gmv" class="text-2xl font-extrabold text-slate-900 mt-1">₦0</p>
         </div>
       </div>
 
-      <!-- ADMIN TAB 1: MASTER BOOKINGS PIPELINE -->
-      <section id="adm-tab-bookings" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 animate-fade-in">
-        <div class="mb-4">
-          <h2 class="text-lg font-extrabold text-slate-900">Master Bookings Pipeline</h2>
-          <p class="text-xs text-slate-500">Monitor, update status, or remove customer job requests across the platform.</p>
+      <!-- ====================================================================
+           TAB 1: MASTER BOOKINGS PIPELINE
+           ==================================================================== -->
+      <div id="adm-tab-bookings" class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900">Master Customer Bookings Pipeline</h2>
+            <p class="text-xs text-slate-500">Changing a booking status dispatches an automatic email notification to the client.</p>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
-              <tr class="border-b border-slate-200 text-slate-400 uppercase">
+              <tr class="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-400">
                 <th class="py-3 px-3">Ref ID</th>
                 <th class="py-3 px-3">Customer</th>
                 <th class="py-3 px-3">Assigned Pro</th>
-                <th class="py-3 px-3">Service & Date</th>
+                <th class="py-3 px-3">Service & Schedule</th>
                 <th class="py-3 px-3">Amount</th>
                 <th class="py-3 px-3">Status</th>
-                <th class="py-3 px-3 text-right">Actions</th>
+                <th class="py-3 px-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody id="adm-bookings-tbody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
-      </section>
+      </div>
 
-      <!-- ADMIN TAB 2: REGISTERED PROFESSIONALS & VERIFICATION -->
-      <section id="adm-tab-pros" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 animate-fade-in">
+      <!-- ====================================================================
+           TAB 2: PROFESSIONALS DIRECTORY & VERIFICATION
+           ==================================================================== -->
+      <div id="adm-tab-pros" class="hidden bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
         <div class="mb-4">
-          <h2 class="text-lg font-extrabold text-slate-900">Registered Professionals & Verification Control</h2>
-          <p class="text-xs text-slate-500">Approve or revoke Verified Badges, inspect accounts, or remove professionals.</p>
+          <h2 class="text-base font-extrabold text-slate-900">Registered Service Professionals</h2>
+          <p class="text-xs text-slate-500">Verify accounts, review pending subscription receipts, or remove listings.</p>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
-              <tr class="border-b border-slate-200 text-slate-400 uppercase">
-                <th class="py-3 px-3">Business & Owner</th>
+              <tr class="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-400">
+                <th class="py-3 px-3">Business & Contact</th>
                 <th class="py-3 px-3">Username</th>
                 <th class="py-3 px-3">Category & Area</th>
                 <th class="py-3 px-3">Base Rate</th>
                 <th class="py-3 px-3">Verification</th>
-                <th class="py-3 px-3 text-right">Actions</th>
+                <th class="py-3 px-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody id="adm-pros-tbody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
-      </section>
+      </div>
 
-      <!-- ADMIN TAB 3: SERVICE CATEGORIES -->
-      <section id="adm-tab-categories" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 max-w-2xl animate-fade-in">
-        <h2 class="text-lg font-extrabold text-slate-900 mb-1">Service Categories Management</h2>
-        <p class="text-xs text-slate-500 mb-4">Add or remove service categories available on the platform.</p>
+      <!-- ====================================================================
+           TAB 3: CUSTOM PRICING PLAN CREATOR, EDITOR & SUBSCRIPTION APPROVALS
+           ==================================================================== -->
+      <div id="adm-tab-subscriptions" class="hidden space-y-6">
 
-        <div id="adm-categories-list" class="space-y-2 mb-5"></div>
-
-        <form onsubmit="AdminApp.addCategory(event)" class="grid grid-cols-12 gap-2 pt-4 border-t border-slate-100">
-          <input id="new-cat-name" type="text" required placeholder="Category Name (e.g. CCTV & Security)" class="col-span-6 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
-          <input id="new-cat-icon" type="text" required placeholder="fa-video" value="fa-wrench" class="col-span-4 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
-          <button type="submit" class="col-span-2 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-extrabold">Add</button>
-        </form>
-      </section>
-
-      <!-- ADMIN TAB 4: CLOUD SYNC, BACKUP & ADMIN SECURITY -->
-      <section id="adm-tab-cloud" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
-        <div class="lg:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-          <div>
-            <h2 class="text-base font-extrabold text-slate-900">Cloud Sync (JSONBin.io) & Database Backup</h2>
-            <p class="text-xs text-slate-500">Connect a JSONBin.io bin to sync bookings and professionals across all devices.</p>
+        <!-- 3A. Create or Edit Subscription Pricing Plan -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-1">
+            <h3 id="plan-form-heading" class="text-base font-extrabold text-slate-900">
+              <i class="fa-solid fa-plus-circle text-blue-600 mr-1.5"></i>Create New Subscription Plan
+            </h3>
+            <button id="cancel-edit-plan-btn" type="button" onclick="AdminApp.cancelEditPlan()" class="hidden px-3 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-extrabold hover:bg-rose-100 transition">
+              <i class="fa-solid fa-xmark mr-1"></i>Cancel Edit
+            </button>
           </div>
+          <p class="text-xs text-slate-500 mb-4">Create new pricing tiers or click "Edit" on any existing plan below to modify its price, duration, or benefits.</p>
 
-          <form onsubmit="AdminApp.saveCloudSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <form id="adm-plan-creator-form" onsubmit="AdminApp.saveSubscriptionPlan(event)" class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Plan Name *</label>
+                <input id="new-plan-name" type="text" required placeholder="e.g. Quarterly VIP Boost" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Badge Label *</label>
+                <input id="new-plan-badge" type="text" required placeholder="e.g. Top Boost / Best Value" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Ranking Tier Style *</label>
+                <select id="new-plan-tier" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  <option value="pro">Verified Pro (Blue Badge • Rank Weight 2)</option>
+                  <option value="featured">Featured VIP (Gold Card + WhatsApp • Rank Weight 3)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Price (₦) *</label>
+                <input id="new-plan-price" type="number" required min="100" step="100" placeholder="e.g. 15000" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Duration (Days) *</label>
+                <input id="new-plan-days" type="number" required min="1" max="3650" placeholder="e.g. 90" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
+              </div>
+              <div class="flex items-end pb-1.5">
+                <label class="inline-flex items-center gap-2 text-xs font-extrabold text-slate-800 cursor-pointer">
+                  <input id="new-plan-popular" type="checkbox" class="w-4 h-4 rounded text-amber-500" />
+                  <span>Highlight with "Most Popular" Ribbon</span>
+                </label>
+              </div>
+            </div>
+
             <div>
-              <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">JSONBin Bin ID</label>
-              <input id="cloud-bin-id" type="text" placeholder="e.g. 671f8a..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
+              <label class="block text-xs font-bold text-slate-700 mb-1">Plan Features / Benefits (Comma-separated) *</label>
+              <input id="new-plan-features" type="text" required placeholder="Pinned to Row 1, Gold VIP Badge, Direct WhatsApp Button, 90 Days Validity" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white" />
             </div>
-            <div>
-              <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">X-Master-Key (API Key)</label>
-              <input id="cloud-api-key" type="password" placeholder="$2a$10$..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
-            </div>
-            <div class="sm:col-span-2 flex flex-wrap gap-2">
-              <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Save Cloud Keys</button>
-              <button type="button" onclick="AdminApp.syncNow('push')" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">
-                <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Push Local to Cloud
-              </button>
-              <button type="button" onclick="AdminApp.syncNow('pull')" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">
-                <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Pull Cloud to Local
-              </button>
-            </div>
+
+            <button id="plan-submit-btn" type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition shadow-sm">
+              + Publish New Pricing Plan
+            </button>
           </form>
 
-          <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-            <div class="flex flex-wrap gap-2">
-              <button onclick="AdminApp.exportJSON()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
-                <i class="fa-solid fa-download mr-1"></i> Export JSON Backup
-              </button>
-              <label class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">
-                <i class="fa-solid fa-upload mr-1"></i> Import JSON
-                <input type="file" accept=".json" onchange="AdminApp.importJSON(event)" class="hidden" />
-              </label>
+          <!-- Active Plans List -->
+          <div class="mt-6">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Active Subscription Plans (Click Edit to Modify)</h4>
+            <div id="adm-plans-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
+
+        <!-- 3B. Bank Transfer & Paystack Gateway Settings -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <h3 class="text-base font-extrabold text-slate-900 mb-1">
+            <i class="fa-solid fa-building-columns text-blue-600 mr-1.5"></i>Payment Gateway & Bank Account Settings
+          </h3>
+          <p class="text-xs text-slate-500 mb-4">Configure the bank account shown for manual transfers and your Paystack Public Key.</p>
+          <form onsubmit="AdminApp.saveGatewaySettings(event)" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Bank Name</label>
+                <input id="adm-bank-name" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Account Number</label>
+                <input id="adm-bank-num" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Account Name</label>
+                <input id="adm-bank-holder" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
+              </div>
             </div>
-            <button onclick="AdminApp.resetDatabase()" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold">
-              Factory Reset Data
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Paystack Public Key</label>
+              <input id="adm-paystack-key" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
+            </div>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
+              Save Bank & Paystack Details
+            </button>
+          </form>
+        </div>
+
+        <!-- 3C. Pending Manual Receipt Approvals -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <h3 class="text-base font-extrabold text-slate-900 mb-1">Pending Subscription Receipts</h3>
+          <p class="text-xs text-slate-500 mb-4">Review uploaded bank transfer receipts and approve or reject professional boost tiers.</p>
+          <div id="adm-pending-subs-list" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           TAB 4: SERVICE CATEGORIES MANAGER
+           ==================================================================== -->
+      <div id="adm-tab-categories" class="hidden bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div class="max-w-xl">
+          <h2 class="text-base font-extrabold text-slate-900 mb-1">Marketplace Service Categories</h2>
+          <p class="text-xs text-slate-500 mb-4">Add or remove service categories available across the platform.</p>
+
+          <form onsubmit="AdminApp.addCategory(event)" class="flex flex-col sm:flex-row gap-2.5 mb-6">
+            <input id="new-cat-name" type="text" required placeholder="Category Name (e.g. CCTV & Security)" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+            <input id="new-cat-icon" type="text" placeholder="FontAwesome Icon (e.g. fa-video)" class="sm:w-48 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold" />
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shrink-0">
+              + Add Category
+            </button>
+          </form>
+
+          <div id="adm-categories-list" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           TAB 5: CLOUD SYNC, BACKUPS & ADMIN SECURITY
+           ==================================================================== -->
+      <div id="adm-tab-cloud" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h3 class="text-base font-extrabold text-slate-900">Firebase Firestore Cloud Sync</h3>
+          <p class="text-xs text-slate-500">Force push local state to Firestore or pull the latest cloud collections.</p>
+          <div class="flex flex-wrap gap-2.5">
+            <button onclick="AdminApp.syncNow('push')" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold">
+              <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>Force Push to Firebase
+            </button>
+            <button onclick="AdminApp.syncNow('pull')" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold">
+              <i class="fa-solid fa-cloud-arrow-down mr-1.5"></i>Reconnect Live Stream
+            </button>
+          </div>
+
+          <div class="pt-4 border-t border-slate-100 flex flex-wrap gap-2.5">
+            <button onclick="AdminApp.exportJSON()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+              Export JSON Backup
+            </button>
+            <label class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">
+              Import JSON Backup
+              <input type="file" accept=".json" onchange="AdminApp.importJSON(event)" class="hidden" />
+            </label>
+            <button onclick="AdminApp.resetDatabase()" class="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold">
+              Factory Reset
             </button>
           </div>
         </div>
 
-        <!-- Admin Credentials Updater -->
-        <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-          <h2 class="text-base font-extrabold text-slate-900 mb-1">Admin Security Credentials</h2>
-          <p class="text-xs text-slate-500 mb-4">Update your administrator login username and password.</p>
+        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+          <h3 class="text-base font-extrabold text-slate-900 mb-1">Admin Login Credentials</h3>
+          <p class="text-xs text-slate-500 mb-4">Update the master username and password for this control center.</p>
           <form onsubmit="AdminApp.updateAdminCredentials(event)" class="space-y-3">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">Admin Username</label>
-              <input id="sec-admin-user" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
+              <input id="sec-admin-user" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold" />
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">New Admin Password</label>
-              <input id="sec-admin-pass" type="password" required minlength="6" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
+              <input id="sec-admin-pass" type="password" required minlength="4" placeholder="Enter new password" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold" />
             </div>
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold">
               Update Admin Credentials
             </button>
           </form>
         </div>
-      </section>
-          <!-- Admin Subscriptions Tab Panel -->
-<!-- Admin Subscriptions & Pricing Tab Panel -->
-<!-- Admin Subscriptions & Custom Pricing Creator Tab Panel -->
-<div id="adm-tab-subscriptions" class="hidden space-y-6">
-
-  <!-- 1. Create New Subscription Pricing Plan -->
-  <div class="bg-white rounded-3xl border border-slate-200 p-6">
-    <h3 class="text-base font-extrabold text-slate-900 mb-1">
-      <i class="fa-solid fa-plus-circle text-blue-600 mr-1.5"></i>Create New Subscription Plan
-    </h3>
-    <p class="text-xs text-slate-500 mb-4">Create custom pricing tiers (e.g. Weekly Boost, Monthly Pro, Annual VIP) that appear immediately in all Pro Dashboards.</p>
-
-    <form onsubmit="AdminApp.createSubscriptionPlan(event)" class="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Plan Name *</label>
-          <input id="new-plan-name" type="text" required placeholder="e.g. Quarterly VIP Boost" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Badge Label *</label>
-          <input id="new-plan-badge" type="text" required placeholder="e.g. Top Boost / Best Value" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Ranking Tier Style *</label>
-          <select id="new-plan-tier" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
-            <option value="pro">Verified Pro (Blue Badge • Rank Weight 2)</option>
-            <option value="featured">Featured VIP (Gold Card + WhatsApp • Rank Weight 3)</option>
-          </select>
-        </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Price (₦) *</label>
-          <input id="new-plan-price" type="number" required min="100" step="100" placeholder="e.g. 15000" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Duration (Days) *</label>
-          <input id="new-plan-days" type="number" required min="1" max="3650" placeholder="e.g. 90" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-extrabold bg-white" />
-        </div>
-        <div class="flex items-end pb-1.5">
-          <label class="inline-flex items-center gap-2 text-xs font-extrabold text-slate-800 cursor-pointer">
-            <input id="new-plan-popular" type="checkbox" class="w-4 h-4 rounded text-amber-500" />
-            <span>Highlight with "Most Popular" Ribbon</span>
-          </label>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Plan Features / Benefits (Comma-separated) *</label>
-        <input id="new-plan-features" type="text" required placeholder="Pinned to Row 1, Gold VIP Badge, Direct WhatsApp Button, 90 Days Validity" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white" />
-      </div>
-
-      <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition shadow-sm">
-        + Publish New Pricing Plan
-      </button>
-    </form>
-
-    <!-- Active Plans List -->
-    <div class="mt-6">
-      <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Active Subscription Plans</h4>
-      <div id="adm-plans-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
     </div>
   </div>
 
-  <!-- 2. Bank Transfer & Paystack Gateway Settings -->
-  <div class="bg-white rounded-3xl border border-slate-200 p-6">
-    <h3 class="text-base font-extrabold text-slate-900 mb-1">
-      <i class="fa-solid fa-building-columns text-blue-600 mr-1.5"></i>Payment Gateway & Bank Account Settings
-    </h3>
-    <form onsubmit="AdminApp.saveGatewaySettings(event)" class="space-y-4 mt-3">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Bank Name</label>
-          <input id="adm-bank-name" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Account Number</label>
-          <input id="adm-bank-num" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold" />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Account Name</label>
-          <input id="adm-bank-holder" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold" />
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Paystack Public Key</label>
-        <input id="adm-paystack-key" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
-      </div>
-      <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
-        Save Bank & Paystack Details
-      </button>
-    </form>
-  </div>
-
-  <!-- 3. Pending Manual Receipt Approvals -->
-  <div class="bg-white rounded-3xl border border-slate-200 p-6">
-    <h3 class="text-base font-extrabold text-slate-900 mb-1">Pending Subscription Receipts</h3>
-    <p class="text-xs text-slate-500 mb-4">Review uploaded bank transfer receipts and approve or reject professional boost tiers.</p>
-    <div id="adm-pending-subs-list" class="space-y-3"></div>
-  </div>
-</div>
-    </main>
-  </div>
-
-  <!-- Toast Container -->
+  <!-- Toast Notification Container -->
   <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
 
   <!-- Scripts -->
- <!-- Update your script declaration in index.html & admin.html -->
-    <!-- <script src="js/firebase-config.js"></script> -->
-<script type="module" src="js/db.js"></script>
-<script type="module" src="js/admin.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/admin.js"></script>
 </body>
-
 </html>
