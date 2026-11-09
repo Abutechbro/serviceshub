@@ -44,7 +44,10 @@ const INITIAL_SEED_STATE = {
     adminUsername: 'admin',
     adminPassword: 'admin123',
     supportWhatsApp: '2348000000000',
-    notifyEmail: 'idrisabubakry@gmail.com',
+    notifyEmail: 'servehub53@gmail.com',
+    emailjsServiceId: 'service_vx1u60g',
+    emailjsTemplateId: 'template_yglhay6',
+    emailjsPublicKey: 'Zoj5D4JlRLNAzR6jG',
     paystackPublicKey: 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY',
     bankName: 'Guaranty Trust Bank (GTB)',
     bankAccountNumber: '0123456789',
@@ -662,6 +665,12 @@ const ServeHubDB = {
   async sendEmailAlert(toEmail, subject, payloadData = {}) {
     if (!toEmail || !toEmail.includes('@')) return { ok: false };
 
+    const state = this.getState();
+    const s = state.settings || {};
+    const serviceId = (s.emailjsServiceId || '').trim();
+    const templateId = (s.emailjsTemplateId || '').trim();
+    const publicKey = (s.emailjsPublicKey || '').trim();
+
     const entries = Object.entries(payloadData);
     const htmlRows = entries.map(([key, val], idx) => {
       const label = key.replace(/_/g, ' ');
@@ -691,24 +700,17 @@ const ServeHubDB = {
       `;
     }).join('');
 
-    const hasEmailJSKeys =
-      EMAILJS_CONFIG.serviceId &&
-      !EMAILJS_CONFIG.serviceId.includes('YOUR_') &&
-      EMAILJS_CONFIG.templateId &&
-      !EMAILJS_CONFIG.templateId.includes('YOUR_') &&
-      EMAILJS_CONFIG.publicKey &&
-      !EMAILJS_CONFIG.publicKey.includes('YOUR_');
+    const hasKeys = serviceId && !serviceId.includes('YOUR_') && templateId && !templateId.includes('YOUR_') && publicKey && !publicKey.includes('YOUR_');
 
-    // 1. Dispatch via EmailJS REST API (works on both index.html and admin.html without extra SDK configuration)
-    if (hasEmailJSKeys) {
+    if (hasKeys) {
       try {
         const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            service_id: EMAILJS_CONFIG.serviceId.trim(),
-            template_id: EMAILJS_CONFIG.templateId.trim(),
-            user_id: EMAILJS_CONFIG.publicKey.trim(),
+            service_id: serviceId,
+            template_id: templateId,
+            user_id: publicKey,
             template_params: {
               to_email: toEmail.trim(),
               subject: subject,
@@ -719,23 +721,17 @@ const ServeHubDB = {
         });
         if (res.ok) return { ok: true, provider: 'emailjs' };
       } catch (err) {
-        console.warn('EmailJS dispatch error, falling back to FormSubmit:', err);
+        console.warn('EmailJS error, falling back:', err);
       }
     }
 
-    // 2. Fallback to FormSubmit styled 'box' template
+    // Fallback to FormSubmit
     try {
       const cleanPayload = {};
-      entries.forEach(([k, v]) => {
-        cleanPayload[k.replace(/_/g, ' ')] = v;
-      });
-
+      entries.forEach(([k, v]) => { cleanPayload[k.replace(/_/g, ' ')] = v; });
       const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
           _subject: subject,
           _template: 'box',
@@ -746,7 +742,6 @@ const ServeHubDB = {
       });
       return { ok: response.ok, provider: 'formsubmit' };
     } catch (err) {
-      console.warn('Email Dispatch Warning:', err);
       return { ok: false };
     }
   },

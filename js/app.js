@@ -983,6 +983,22 @@ const App = {
         await ServeHubDB.saveState(state);
         ServeHubDB.authenticatePro(username, password);
 
+        // Notify Admin of New Professional Registration
+        const adminEmail = state.settings?.notifyEmail || 'servehub53@gmail.com';
+        this.dispatchEmailNotification(
+            adminEmail,
+            `📢 New Professional Registered: ${newPro.businessName}`,
+            {
+                Business_Name: newPro.businessName,
+                Pro_Name: newPro.name,
+                Category: newPro.category,
+                Phone_Number: newPro.phone,
+                Email: newPro.email,
+                Location: newPro.location,
+                Action_Required: 'Review and Verify Account in Admin Portal'
+            }
+        );
+
         e.target.reset();
         this.closeAuthModal();
         this.renderAll();
@@ -1334,6 +1350,21 @@ const App = {
         pro.paymentRef = reference;
 
         await ServeHubDB.saveState(state, true);
+
+    // Notify Admin of Instant Paystack Subscription
+    const adminEmail = state.settings?.notifyEmail || 'servehub53@gmail.com';
+    this.dispatchEmailNotification(
+      adminEmail,
+      `⚡ Instant Paystack Subscription: ${plan.name}`,
+      {
+        Professional: pro.businessName,
+        Pro_Username: pro.username,
+        Plan_Subscribed: plan.name,
+        Amount_Paid: ServeHubDB.formatCurrency(plan.price),
+        Payment_Reference: reference,
+        Status: 'Active & Automatically Verified'
+      }
+    );
         this.renderAll();
         this.notify(`Activated ${plan.name}! Ref: ${reference}`);
     },
@@ -1386,6 +1417,22 @@ const App = {
             };
 
             await ServeHubDB.saveState(state, true);
+      // Notify Admin of New Manual Subscription Receipt
+      const adminEmail = state.settings?.notifyEmail || 'servehub53@gmail.com';
+      this.dispatchEmailNotification(
+        adminEmail,
+        `💰 New Subscription Receipt Submitted: ${plan.name}`,
+        {
+          Professional: pro.businessName,
+          Pro_Username: pro.username,
+          Selected_Plan: plan.name,
+          Amount: ServeHubDB.formatCurrency(plan.price),
+          Transaction_Ref: pro.pendingSubscription.txnRef,
+          Action_Required: 'Review receipt and approve in Admin Portal'
+        }
+      );
+
+
             e.target.reset();
             this.renderAll();
             this.notify(`Receipt submitted for ${plan.name}! Awaiting Admin approval.`);

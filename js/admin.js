@@ -148,6 +148,13 @@ const AdminApp = {
     this.renderSubscriptionPlans(state);
     this.renderPendingReceipts(state);
     this.renderCategoriesList(state);
+
+    // Inside renderDashboard() in js/admin.js:
+    setVal('adm-notify-email', s.notifyEmail || 'servehub53@gmail.com');
+    setVal('adm-emailjs-pub', s.emailjsPublicKey || 'YOUR_EMAILJS_PUBLIC_KEY');
+    setVal('adm-emailjs-srv', s.emailjsServiceId || 'YOUR_EMAILJS_SERVICE_ID');
+    setVal('adm-emailjs-tpl', s.emailjsTemplateId || 'YOUR_EMAILJS_TEMPLATE_ID');
+
   },
 
   /* ========================================================================
@@ -756,7 +763,22 @@ const AdminApp = {
     toast.innerHTML = `<span>${ServeHubDB.escapeHTML(message)}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3500);
-  }
+  },
+
+  async saveEmailSettings(e) {
+    e.preventDefault();
+    const state = ServeHubDB.getState();
+    if (!state.settings) state.settings = {};
+
+    state.settings.notifyEmail = document.getElementById('adm-notify-email').value.trim();
+    state.settings.emailjsPublicKey = document.getElementById('adm-emailjs-pub').value.trim();
+    state.settings.emailjsServiceId = document.getElementById('adm-emailjs-srv').value.trim();
+    state.settings.emailjsTemplateId = document.getElementById('adm-emailjs-tpl').value.trim();
+
+    await ServeHubDB.saveState(state, true);
+    this.renderDashboard();
+    this.notify('Email gateway credentials updated successfully!');
+  },
 };
 
 window.AdminApp = AdminApp;

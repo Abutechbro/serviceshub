@@ -387,6 +387,42 @@
             </button>
           </form>
         </div>
+
+        <!-- Admin Email Gateway & Credentials Settings -->
+<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+  <h3 class="text-base font-extrabold text-slate-900 mb-1">
+    <i class="fa-solid fa-envelope-circle-check text-blue-600 mr-1.5"></i>Email Gateway & Admin Alert Settings
+  </h3>
+  <p class="text-xs text-slate-500 mb-4">Configure where admin alerts are sent and your EmailJS API credentials.</p>
+
+  <form onsubmit="AdminApp.saveEmailSettings(event)" class="space-y-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Admin Notification Email *</label>
+        <input id="adm-notify-email" type="email" required placeholder="admin@servehubpro.com" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold" />
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">EmailJS Public Key *</label>
+        <input id="adm-emailjs-pub" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">EmailJS Service ID *</label>
+        <input id="adm-emailjs-srv" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">EmailJS Template ID *</label>
+        <input id="adm-emailjs-tpl" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono" />
+      </div>
+    </div>
+
+    <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-extrabold transition">
+      Save Email Gateway Settings
+    </button>
+  </form>
+</div>
       </div>
 
     </div>
