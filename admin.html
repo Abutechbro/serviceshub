@@ -39,9 +39,9 @@
             <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Control Center</p>
           </div>
         </div>
-        <a href="index.html" class="text-xs font-bold text-slate-500 hover:text-blue-600 transition">
+        <!-- <a href="index.html" class="text-xs font-bold text-slate-500 hover:text-blue-600 transition">
           &larr; Public Site
-        </a>
+        </a> -->
       </div>
 
       <form onsubmit="AdminApp.handleLogin(event)" class="space-y-4">
@@ -51,8 +51,7 @@
             id="admin-user"
             type="text"
             required
-            value="admin"
-            placeholder="admin"
+            placeholder="Username"
             class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
           />
         </div>
@@ -63,14 +62,13 @@
             id="admin-pass"
             type="password"
             required
-            value="admin123"
             placeholder="••••••••"
             class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-semibold focus:outline-none focus:border-blue-600"
           />
         </div>
 
         <button type="submit" class="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg">
-          Unlock Admin Workspace <i class="fa-solid fa-arrow-right ml-1.5"></i>
+          Unlock Admin <i class="fa-solid fa-arrow-right ml-1.5"></i>
         </button>
       </form>
     </div>
