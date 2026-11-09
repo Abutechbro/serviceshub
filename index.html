@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ServeHub Pro — Find & Book Trusted Professionals</title>
+  <title>ServeHub — Find & Book Trusted Professionals</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome Icons -->
@@ -32,21 +32,21 @@
   <div id="public-announcement-bar" class="bg-slate-950 text-slate-300 text-[11px] font-semibold border-b border-slate-800/80 no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <span class="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+        <!-- <span class="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
           <i class="fa-solid fa-shield-check"></i> 100% Vetted & ID-Verified Professionals
-        </span>
-        <span class="hidden md:inline-flex items-center gap-1.5 text-slate-400">
+        </span> -->
+        <!-- <span class="hidden md:inline-flex items-center gap-1.5 text-slate-400">
           <i class="fa-solid fa-bolt text-amber-400"></i> Same-Day Emergency Dispatch Available
-        </span>
+        </span> -->
       </div>
       <div class="flex items-center gap-4">
-        <a href="#tracker" onclick="App.switchTab('tracker'); return false;" class="hover:text-white transition">
+        <!-- <a href="#tracker" onclick="App.switchTab('tracker'); return false;" class="hover:text-white transition">
           <i class="fa-solid fa-location-crosshairs text-blue-400 mr-1"></i>Track Existing Job
-        </a>
-        <span class="text-slate-700">|</span>
+        </a> -->
+        <!-- <span class="text-slate-700">|</span>
         <button onclick="App.openAuthModal('login')" class="text-amber-400 hover:text-amber-300 font-bold transition bg-transparent border-0 cursor-pointer">
           Pro Portal &rarr;
-        </button>
+        </button> -->
       </div>
     </div>
   </div>
@@ -69,20 +69,20 @@
       </div>
 
       <!-- 1A. PUBLIC GUEST NAVIGATION -->
-      <nav id="public-desktop-nav" class="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
-        <button onclick="App.switchTab('marketplace')" id="nav-marketplace" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm">
-          <i class="fa-solid fa-compass mr-1.5"></i>Find a Pro
-        </button>
-        <button onclick="App.switchTab('tracker')" id="nav-tracker" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
-          <i class="fa-solid fa-radar mr-1.5"></i>Track Booking
-        </button>
-      </nav>
+      <nav id="public-desktop-nav" class="!hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+  <button onclick="App.switchTab('marketplace')" id="nav-marketplace" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm">
+    <i class="fa-solid fa-compass mr-1.5"></i>Find a Pro
+  </button>
+  <button onclick="App.switchTab('tracker')" id="nav-tracker" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
+    <i class="fa-solid fa-radar mr-1.5"></i>Track Booking
+  </button>
+</nav>
 
       <!-- 1B. PUBLIC GUEST CTA BUTTONS (TRIGGERS POPUP) -->
       <div id="public-header-actions" class="flex items-center gap-2.5">
-        <!-- <button onclick="App.openAuthModal('login')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
+        <button onclick="App.openAuthModal('login')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">
           <i class="fa-solid fa-right-to-bracket"></i> Pro Login
-        </button> -->
+        </button>
         <button onclick="App.openAuthModal('register')" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm">
           <i class="fa-solid fa-user-plus"></i> Register Pro
         </button>
@@ -131,9 +131,9 @@
       <button onclick="App.switchTab('tracker')" id="mnav-tracker" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
         <i class="fa-solid fa-radar mr-1"></i>Track Job
       </button>
-      <button onclick="App.openAuthModal('login')" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
+      <!-- <button onclick="App.openAuthModal('login')" class="flex-1 py-1.5 text-xs font-bold text-slate-500">
         <i class="fa-solid fa-right-to-bracket mr-1"></i>Pro Portal
-      </button>
+      </button> -->
     </div>
 
     <!-- Mobile Navigation Bar: Logged-In Pro Mode -->
@@ -174,8 +174,7 @@
             Hire Vetted <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300">Professionals</span> For Any Job, Fast.
           </h1>
           <p class="mt-4 text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-            Connect directly with certified electricians, master plumbers, solar engineers, and HVAC specialists. View upfront service menus, compare ratings, and book in under 60 seconds.
-          </p>
+            Connect directly with certified Professionals in your city.
 
           <!-- Search & Location Filter Bar -->
           <div class="mt-8 bg-white p-2.5 rounded-2xl shadow-2xl shadow-blue-950/50 max-w-2xl mx-auto flex flex-col sm:flex-row gap-2 border border-white/20">
@@ -216,40 +215,40 @@
           <!-- Hero Trust Metrics Strip -->
           <div class="mt-10 pt-8 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left max-w-2xl mx-auto">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+              <!-- <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
                 <i class="fa-solid fa-user-check"></i>
               </div>
               <div>
                 <p class="text-sm font-extrabold text-white">Verified Pros</p>
                 <p class="text-[11px] text-slate-400">ID & Skill Checked</p>
-              </div>
+              </div> -->
             </div>
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <!-- <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
                 <i class="fa-solid fa-tags"></i>
               </div>
               <div>
                 <p class="text-sm font-extrabold text-white">Upfront Rates</p>
                 <p class="text-[11px] text-slate-400">No Hidden Charges</p>
-              </div>
+              </div> -->
             </div>
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+              <!-- <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
                 <i class="fa-solid fa-envelope-circle-check text-lg"></i>
               </div>
               <div>
                 <p class="text-sm font-extrabold text-white">Email & WA Alerts</p>
                 <p class="text-[11px] text-slate-400">Live Status Sync</p>
-              </div>
+              </div> -->
             </div>
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+              <!-- <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
                 <i class="fa-solid fa-star"></i>
-              </div>
-              <div>
+              </div> -->
+              <!-- <div>
                 <p class="text-sm font-extrabold text-white">4.9/5 Rating</p>
                 <p class="text-[11px] text-slate-400">Client Reviewed</p>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -294,7 +293,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center max-w-2xl mx-auto mb-12">
           <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-extrabold uppercase tracking-wider">Simple & Transparent</span>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">How ServeHub Pro Works</h2>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">How ServeHub Works</h2>
           <p class="text-xs sm:text-sm text-slate-500 mt-2">Book a reliable technical specialist in three straightforward steps without middleman delays.</p>
         </div>
 
@@ -531,7 +530,7 @@
     <div class="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-1.5 mb-4">
       <div class="flex justify-between"><span class="text-slate-500">Bank Name:</span><span id="ui-bank-name" class="font-bold text-slate-900">Guaranty Trust Bank (GTB)</span></div>
       <div class="flex justify-between"><span class="text-slate-500">Account Number:</span><span id="ui-bank-num" class="font-extrabold text-blue-600 font-mono text-sm">0123456789</span></div>
-      <div class="flex justify-between"><span class="text-slate-500">Account Name:</span><span id="ui-bank-holder" class="font-bold text-slate-900">ServeHub Pro Technologies</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Account Name:</span><span id="ui-bank-holder" class="font-bold text-slate-900">ServeHub Technologies</span></div>
     </div>
 
     <form onsubmit="App.submitManualPaymentReceipt(event)" class="space-y-3">
@@ -788,7 +787,7 @@
             Are You a Certified Service Professional?
           </h3>
           <p class="text-xs sm:text-sm text-blue-100 mt-2 leading-relaxed">
-            Launch your digital showroom on ServeHub Pro in 2 minutes. Showcase your rates, receive instant email and WhatsApp booking tickets, and build verified client trust.
+            Launch your digital showroom on ServeHub in 2 minutes. Showcase your rates, receive instant email and WhatsApp booking tickets, and build verified client trust.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3 shrink-0">
@@ -815,7 +814,7 @@
             </div>
           </div>
           <p class="text-xs text-slate-400 leading-relaxed pr-4">
-            ServeHub Pro connects homeowners and businesses with vetted, background-checked electricians, plumbers, solar engineers, and technical artisans with transparent upfront pricing.
+            ServeHub connects homeowners and businesses with vetted, background-checked electricians, plumbers, solar engineers, and technical artisans with transparent upfront pricing.
           </p>
         </div>
 
@@ -853,7 +852,7 @@
       </div>
 
       <div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-        <p class="font-semibold">&copy; 2026 <span class="text-slate-300 font-bold">ServeHub Pro</span>. All rights reserved.</p>
+        <p class="font-semibold">&copy; 2026 <span class="text-slate-300 font-bold">ServeHub by ADH</span>. All rights reserved.</p>
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">
           Back to Top <i class="fa-solid fa-arrow-up ml-1"></i>
         </button>
@@ -865,7 +864,7 @@
   <footer id="pro-workspace-footer" class="hidden bg-white border-t border-slate-200 py-5 mt-auto no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-semibold">
       <div>
-        <span class="text-slate-900 font-extrabold">ServeHub Pro Workspace</span> &bull; Logged in as <span id="footer-pro-username" class="text-blue-600 font-bold"></span>
+        <span class="text-slate-900 font-extrabold">ServeHub Workspace</span> &bull; Logged in as <span id="footer-pro-username" class="text-blue-600 font-bold"></span>
       </div>
       <div class="flex items-center gap-4">
         <button onclick="App.previewMyShowroom()" class="hover:text-blue-600">Preview My Public Showroom</button>
