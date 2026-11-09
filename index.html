@@ -93,7 +93,7 @@
       </div>
 
       <!-- 1C. LOGGED-IN PROFESSIONAL WORKSPACE NAV -->
-      <nav id="pro-desktop-nav" class="hidden items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+      <nav id="pro-desktop-nav" class="hidden sm:inline-block  items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
         <button onclick="App.switchProWorkspaceTab('bookings')" id="pnav-bookings" class="px-4 py-2 rounded-lg text-xs font-extrabold transition-all bg-white text-blue-600 shadow-sm">
           <i class="fa-solid fa-calendar-check mr-1.5"></i>Client Bookings
         </button>
@@ -137,7 +137,7 @@
     </div>
 
     <!-- Mobile Navigation Bar: Logged-In Pro Mode -->
-    <div id="pro-mobile-nav" class="hidden border-t border-slate-200/80 bg-white px-2 py-1.5 justify-around">
+    <div id="pro-mobile-nav" class="!hidden border-t border-slate-200/80 bg-white px-2 py-1.5 justify-around">
       <button onclick="App.switchProWorkspaceTab('bookings')" id="mpnav-bookings" class="flex-1 py-1.5 text-xs font-bold text-blue-600 border-b-2 border-blue-600">
         <i class="fa-solid fa-calendar-check mr-1"></i>Bookings
       </button>
