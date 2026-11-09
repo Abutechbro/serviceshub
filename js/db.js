@@ -24,6 +24,13 @@ const FIREBASE_CONFIG = {
   measurementId: "G-JSC2Z393D1"
 };
 
+// 1. Place near the top of js/db.js
+const EMAILJS_CONFIG = {
+  serviceId: "service_vx1u60g",   // Replace with your EmailJS Service ID
+  templateId: "template_yglhay6", // Replace with your EmailJS Template ID
+  publicKey: "Zoj5D4JlRLNAzR6jG"    // Replace with your EmailJS Public Key
+};
+
 const DB_STORAGE_KEY = 'SERVEHUB_PRO_PRODUCTION_V3';
 const PRO_SESSION_KEY = 'SERVEHUB_PRO_ACTIVE_SESSION';
 const ADMIN_SESSION_KEY = 'SERVEHUB_ADMIN_ACTIVE_SESSION';
@@ -649,7 +656,100 @@ const ServeHubDB = {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-  }
+  },
+
+
+  async sendEmailAlert(toEmail, subject, payloadData = {}) {
+    if (!toEmail || !toEmail.includes('@')) return { ok: false };
+
+    const entries = Object.entries(payloadData);
+    const htmlRows = entries.map(([key, val], idx) => {
+      const label = key.replace(/_/g, ' ');
+      const rawVal = String(val ?? '');
+      const isLast = idx === entries.length - 1;
+      const isHighlight = /amount|total|price|reference/i.test(label);
+      const isStatus = /status/i.test(label);
+
+      let valueHTML = this.escapeHTML(rawVal);
+      if (isStatus) {
+        const isPositive = /completed|confirmed|active|approved/i.test(rawVal);
+        const isCancelled = /cancelled|rejected/i.test(rawVal);
+        const bg = isPositive ? '#dcfce7' : isCancelled ? '#ffe4e6' : '#dbeafe';
+        const fg = isPositive ? '#166534' : isCancelled ? '#9f1239' : '#1e40af';
+        valueHTML = `<span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;background-color:${bg};color:${fg};">${this.escapeHTML(rawVal)}</span>`;
+      }
+
+      return `
+        <tr>
+          <td style="padding:12px 16px;font-size:12px;font-weight:700;color:#64748b;border-bottom:${isLast ? 'none' : '1px solid #e2e8f0'};width:42%;">
+            ${this.escapeHTML(label)}
+          </td>
+          <td style="padding:12px 16px;font-size:13px;font-weight:${isHighlight ? '800' : '600'};color:${isHighlight ? '#2563eb' : '#0f172a'};text-align:right;border-bottom:${isLast ? 'none' : '1px solid #e2e8f0'};">
+            ${valueHTML}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const hasEmailJSKeys =
+      EMAILJS_CONFIG.serviceId &&
+      !EMAILJS_CONFIG.serviceId.includes('YOUR_') &&
+      EMAILJS_CONFIG.templateId &&
+      !EMAILJS_CONFIG.templateId.includes('YOUR_') &&
+      EMAILJS_CONFIG.publicKey &&
+      !EMAILJS_CONFIG.publicKey.includes('YOUR_');
+
+    // 1. Dispatch via EmailJS REST API (works on both index.html and admin.html without extra SDK configuration)
+    if (hasEmailJSKeys) {
+      try {
+        const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service_id: EMAILJS_CONFIG.serviceId.trim(),
+            template_id: EMAILJS_CONFIG.templateId.trim(),
+            user_id: EMAILJS_CONFIG.publicKey.trim(),
+            template_params: {
+              to_email: toEmail.trim(),
+              subject: subject,
+              html_rows: htmlRows,
+              app_url: window.location.origin
+            }
+          })
+        });
+        if (res.ok) return { ok: true, provider: 'emailjs' };
+      } catch (err) {
+        console.warn('EmailJS dispatch error, falling back to FormSubmit:', err);
+      }
+    }
+
+    // 2. Fallback to FormSubmit styled 'box' template
+    try {
+      const cleanPayload = {};
+      entries.forEach(([k, v]) => {
+        cleanPayload[k.replace(/_/g, ' ')] = v;
+      });
+
+      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: subject,
+          _template: 'box',
+          _captcha: 'false',
+          Platform: 'ServeHub Pro Marketplace',
+          ...cleanPayload
+        })
+      });
+      return { ok: response.ok, provider: 'formsubmit' };
+    } catch (err) {
+      console.warn('Email Dispatch Warning:', err);
+      return { ok: false };
+    }
+  },
 };
 
 // Expose ServeHubDB globally so App and AdminApp always have access

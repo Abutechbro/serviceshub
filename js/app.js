@@ -43,33 +43,28 @@ const App = {
        2. ZERO-BACKEND EMAIL DISPATCHER (FALLBACK-SAFE)
        ======================================================================== */
     async dispatchEmailNotification(toEmail, subject, payloadData) {
-        if (!toEmail || !toEmail.includes('@')) return { ok: false };
-
-        if (typeof ServeHubDB !== 'undefined' && typeof ServeHubDB.sendEmailAlert === 'function') {
-            return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
-        }
-
-        try {
-            const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    _subject: subject,
-                    _template: 'table',
-                    _captcha: 'false',
-                    Platform: 'ServeHub Pro Marketplace',
-                    ...payloadData
-                })
-            });
-            return { ok: response.ok };
-        } catch (err) {
-            console.warn('Email Dispatch Warning:', err);
-            return { ok: false };
-        }
-    },
+    return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
+},
+        // try {
+        //     const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail.trim())}`, {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json',
+        //             'Accept': 'application/json'
+        //         },
+        //         body: JSON.stringify({
+        //             _subject: subject,
+        //             _template: 'table',
+        //             _captcha: 'false',
+        //             Platform: 'ServeHub Pro Marketplace',
+        //             ...payloadData
+        //         })
+        //     });
+        //     return { ok: response.ok };
+        // } catch (err) {
+        //     console.warn('Email Dispatch Warning:', err);
+        //     return { ok: false };
+        // }
 
     /* ========================================================================
        3. POPUP AUTH MODAL CONTROLS (LOGIN & REGISTER)

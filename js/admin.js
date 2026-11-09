@@ -97,12 +97,7 @@ const AdminApp = {
      3. EMAIL NOTIFICATION DISPATCHER
      ======================================================================== */
   async dispatchEmailNotification(toEmail, subject, payloadData) {
-    if (!toEmail || !toEmail.includes('@')) return { ok: false };
-
-    if (typeof ServeHubDB !== 'undefined' && typeof ServeHubDB.sendEmailAlert === 'function') {
-      return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
-    }
-    return { ok: false };
+    return await ServeHubDB.sendEmailAlert(toEmail, subject, payloadData);
   },
 
   /* ========================================================================
