@@ -646,15 +646,22 @@ const AdminApp = {
     await ServeHubDB.saveState(state, true);
     this.renderDashboard();
     this.notify(`${pro.businessName} verification set to ${pro.verified}`);
-  },
 
-  async deletePro(proId) {
-    if (!confirm('Remove this professional from the platform?')) return;
-    const state = ServeHubDB.getState();
-    state.professionals = state.professionals.filter(p => p.id !== proId);
-    await ServeHubDB.saveState(state, true);
-    this.renderDashboard();
-    this.notify('Professional removed.');
+    // Dispatch welcome & account approval email when verified by admin
+    if (pro.verified && pro.email) {
+      await this.dispatchEmailNotification(
+        pro.email,
+        `🎉 Congratulations! Your ServeHub Pro Account is Verified`,
+        {
+          Account_Status: 'Fully Verified',
+          Business_Name: pro.businessName,
+          Username: `@${pro.username}`,
+          Category: pro.category,
+          Location: pro.location,
+          Next_Steps: 'Log in to your Pro Workspace to set up your services and boost your visibility.'
+        }
+      );
+    }
   },
 
   /* ========================================================================
